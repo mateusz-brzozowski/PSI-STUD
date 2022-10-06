@@ -1,0 +1,8 @@
+version: '3.8'
+
+services:
+  cpp_script:
+    build: ./
+    container_name: cpp_script
+    command:
+      - ./build/src/hello

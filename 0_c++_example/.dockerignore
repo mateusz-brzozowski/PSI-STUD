@@ -1,0 +1,13 @@
+# ignore .git and .cache folders
+.git
+.cache
+
+# ignore all *.class files in all folders, including build root
+**/*.class
+
+# ignore docker files
+Dockerfile
+docker-compose.yml
+
+# ignore build files
+build/
