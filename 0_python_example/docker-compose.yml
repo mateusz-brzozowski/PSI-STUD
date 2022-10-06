@@ -1,0 +1,4 @@
+services:
+  python_script:
+    build: ./
+    command: python3 ./hello.py
