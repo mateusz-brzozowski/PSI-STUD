@@ -1,4 +1,9 @@
+version: '3.8'
+
 services:
   python_script:
-    build: ./
-    command: python3 ./hello.py
+    container_name: python_script
+    image: python:latest
+    volumes:
+      - ./:/home/admin/
+    command: python /home/admin/hello.py
