@@ -20,11 +20,10 @@ void get_random_string(char *buffer, size_t buffer_length) {
     static char charset[] = ALPHABET;
     if (buffer_length) {
         if (buffer) {
-            for (int n = 0; n < buffer_length - 1; ++n) {
+            for (int n = 0; n < buffer_length; ++n) {
                 int key = rand() % (int)(sizeof(charset) - 1);
                 buffer[n] = charset[key];
             }
-            buffer[buffer_length - 1] = '\0';
         }
     }
 }
@@ -78,12 +77,13 @@ int main(int argc, char *argv[]) {
     }
 
     char buffer[DATA_GRAM_LENGTH + 1];
+    buffer[DATA_GRAM_LENGTH] = '\0';
 
     for (u_int8_t i = 0; i < DATA_GRAM_NUMBER; ++i) {
-        get_random_string(buffer, sizeof buffer);
+        get_random_string(buffer, DATA_GRAM_LENGTH);
         printf("Sending %s", buffer);
 
-        if (send(sock, buffer, sizeof buffer, 0) == -1) {
+        if (send(sock, buffer, DATA_GRAM_LENGTH, 0) == -1) {
             perror("sending datagram message");
             exit(4);
         }
