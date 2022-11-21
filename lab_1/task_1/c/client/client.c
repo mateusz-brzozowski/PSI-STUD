@@ -81,7 +81,7 @@ int main(int argc, char *argv[]) {
 
     for (u_int8_t i = 0; i < DATA_GRAM_NUMBER; ++i) {
         get_random_string(buffer, DATA_GRAM_LENGTH);
-        printf("Sending %s", buffer);
+        printf("Sending %s\n", buffer);
 
         if (send(sock, buffer, DATA_GRAM_LENGTH, 0) == -1) {
             perror("sending datagram message");

@@ -1,0 +1,5 @@
+FROM gcc:10
+
+COPY ./ ./
+
+RUN gcc -o c_client client.c
