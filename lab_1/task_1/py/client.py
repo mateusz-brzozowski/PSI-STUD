@@ -20,16 +20,18 @@ def get_random_string(length: int) -> str:
 
 def parse_arguments(args: List[str]) -> Tuple[str, int]:
     if len(args) < 3:
-        print('No host or port defined, using python_server at 8000 as default')
-        host = 'python_server'
+        print('No host or port defined, using localhost at 8000 as default')
+        host = 'localhost'
         port = 8000
     else:
         host = sys.argv[1]
         port = int(sys.argv[2])
 
     print(f'Will send to {host}:{port}')
+    host = socket.gethostbyname(host)
+    print(f'at {host}:{port}')
 
-    return socket.gethostbyname(host), port
+    return host, port
 
 
 def send_text(s: socket.socket, text: str) -> None:
@@ -48,7 +50,8 @@ def main(args: List[str]) -> None:
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
         s.connect((host, port))
         for text in data_grams:
-            send_text(s, text)
+            # send_text(s, text)
+            s.sendto(text.encode('ascii'), (host, port))
 
     print('Client finished.')
 

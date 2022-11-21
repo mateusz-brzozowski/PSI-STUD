@@ -10,11 +10,7 @@ services:
     image: python:latest
     volumes:
       - ./py/server.py:/server.py
-    command: python /server.py
-    ports:
-      - 8000:8000
-    expose:
-      - 8000
+    command: python -u /server.py 0.0.0.0 8000
     networks:
       - z43_network
 
@@ -23,7 +19,7 @@ services:
     image: python:latest
     volumes:
       - ./py/client.py:/client.py
-    command: python /client.py
+    command: python /client.py python_server 8000
     networks:
       - z43_network
     depends_on:
