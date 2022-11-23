@@ -29,14 +29,14 @@ services:
   c_server:
     container_name: c_server
     build: ./c/server/
-    command: ./c_server 0.0.0.0 8001
+    command: ./c_server 8001
     networks:
       - z43_network
 
   c_client:
     container_name: c_client
     build: ./c/client/
-    command: ./c_client python_server 8000
+    command: ./c_client c_server 8001
     networks:
       - z43_network
     depends_on:

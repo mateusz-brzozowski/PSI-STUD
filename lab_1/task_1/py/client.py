@@ -50,8 +50,7 @@ def main(args: List[str]) -> None:
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
         s.connect((host, port))
         for text in data_grams:
-            # send_text(s, text)
-            s.sendto(text.encode('ascii'), (host, port))
+            send_text(s, text)
 
     print('Client finished.')
 
