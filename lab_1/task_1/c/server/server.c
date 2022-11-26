@@ -24,7 +24,12 @@ int parse_argument(int argc, char *argv[]) {
     if (argc < 2) {
         port = htons(8000);
     } else {
-        port = htons(atoi(argv[1]));
+        if (port=atoi(argv[1]))
+            port=htons(port);
+        else{
+            perror("Error, not able to parse provided arguments.");
+            exit(1);
+        }
     }
 
     printf("Will listen on 0.0.0.0:%d\n", ntohs(port));
@@ -44,7 +49,7 @@ int main(int argc, char *argv[]) {
     buffer[BUFSIZE] = '\0';
 
     if ((socket_file_descriptor = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
-        perror("opening datagram socket");
+        perror("Error while opening datagram socket");
         exit(1);
     }
 

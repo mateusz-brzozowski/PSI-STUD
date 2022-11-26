@@ -40,7 +40,12 @@ void parse_arguments(int argc, char *argv[], Arguments *arguments) {
         port = 8000;
     } else {
         host = argv[1];
-        port = htons(atoi(argv[2]));
+        if (port=atoi(argv[2]))
+            port=htons(port);
+        else{
+            perror("Error, not able to parse provided arguments.");
+            exit(1);
+        }
     }
 
     struct hostent *host_info;
