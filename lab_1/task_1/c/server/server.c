@@ -40,11 +40,10 @@ void main(int argc, char *argv[]) {
     }
 
     server_address.sin_family = AF_INET;
-    server_address.sin_addr.s_addr = INADDR_ANY;
+    server_address.sin_addr.s_addr = htonl(INADDR_ANY);
     server_address.sin_port = parse_argument(argc, argv);
 
-    if (bind(socket_file_descriptor, (struct sockaddr *)&server_address, sizeof server_address) ==
-        -1) {
+    if (bind(socket_file_descriptor, (struct sockaddr *)&server_address, sizeof server_address) == -1) {
         perror("binding datagram socket");
         exit(1);
     }
@@ -72,8 +71,7 @@ void main(int argc, char *argv[]) {
         buf[bytes_read] = '\0';
 
         printf("-->%s\n", buf);
-        printf("Client address: %s:%s", ntohl(client_address.sin_addr.s_addr),
-               ntohs(client_address.sin_port));
+        printf("Client address: %s:%s", ntohl(client_address.sin_addr.s_addr), ntohs(client_address.sin_port));
     }
 
     close(socket_file_descriptor);

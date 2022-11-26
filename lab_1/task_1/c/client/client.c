@@ -3,8 +3,8 @@
 #include <stdio.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <unistd.h>
 
-#define DATA "The sea is calm, the tide is full . . ."
 #define ALPHABET "abcdefghijklmnopqrstuvwxyz"
 #define DATA_GRAM_LENGTH 60
 #define DATA_GRAM_NUMBER 10
@@ -65,8 +65,7 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
-    memcpy((char *)&name.sin_addr, (char *)arguments.host_address->h_addr,
-           arguments.host_address->h_length);
+    memcpy((char *)&name.sin_addr, (char *)arguments.host_address->h_addr, arguments.host_address->h_length);
 
     name.sin_family = AF_INET;
     name.sin_port = arguments.port;
