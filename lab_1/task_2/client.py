@@ -8,8 +8,9 @@ import string
 # Sprawdzić jaki był maksymalny rozmiar wysłanego (przyjętego) datagramu. 
 # Ustalić z dokładnością do jednego bajta jak duży datagram jest obsługiwany.
 
-DATA_GRAM_MULT = 10 # how many times bigger are next datagrams
-DATA_GRAM_START_LEN = 10
+DATA_GRAM_ADD = 1 # # how much to add to next datagrams
+DATA_GRAM_MULT = 1.1 # how many times bigger are next datagrams
+DATA_GRAM_START_LEN = 65506
 
 
 def get_random_string(length: int) -> str:
@@ -57,8 +58,9 @@ def prepare_socket_and_start_sending_data(host: str, port: int) -> None:
         connect_with_server(s, host, port)
         datagram_len = DATA_GRAM_START_LEN
         while work():
-            send_text(s, get_random_string(datagram_len))
-            datagram_len *= DATA_GRAM_MULT
+            send_text(s, get_random_string(int(datagram_len)))
+            datagram_len += DATA_GRAM_ADD
+            # datagram_len *= DATA_GRAM_MULT
 
 def work() -> bool:
     return True
