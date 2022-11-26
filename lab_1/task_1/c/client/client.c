@@ -1,6 +1,8 @@
 #include <netdb.h>
 #include <netinet/in.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -17,10 +19,11 @@ struct arguments {
 typedef struct arguments Arguments;
 
 void get_random_string(char *buffer, size_t buffer_length) {
+    size_t n;
     static char charset[] = ALPHABET;
     if (buffer_length) {
         if (buffer) {
-            for (int n = 0; n < buffer_length; ++n) {
+            for (n = 0; n < buffer_length; ++n) {
                 int key = rand() % (int)(sizeof(charset) - 1);
                 buffer[n] = charset[key];
             }
@@ -56,6 +59,7 @@ int main(int argc, char *argv[]) {
     int sock;
     struct sockaddr_in name;
     Arguments arguments;
+    u_int8_t i;
 
     parse_arguments(argc, argv, &arguments);
 
@@ -70,7 +74,7 @@ int main(int argc, char *argv[]) {
     name.sin_family = AF_INET;
     name.sin_port = arguments.port;
 
-    if (connect(sock, (struct sockaddr *)&name, sizeof name) == -1) {
+    if (connect(sock, (struct sockaddr *)&name, sizeof(name)) == -1) {
         perror("Connect");
         exit(3);
     }
@@ -78,7 +82,7 @@ int main(int argc, char *argv[]) {
     char buffer[DATA_GRAM_LENGTH + 1];
     buffer[DATA_GRAM_LENGTH] = '\0';
 
-    for (u_int8_t i = 0; i < DATA_GRAM_NUMBER; ++i) {
+    for (i = 0; i < DATA_GRAM_NUMBER; ++i) {
         get_random_string(buffer, DATA_GRAM_LENGTH);
         printf("Sending %s\n", buffer);
 

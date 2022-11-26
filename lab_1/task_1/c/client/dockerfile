@@ -1,4 +1,4 @@
-FROM gcc:10
+FROM gcc:4.9
 
 COPY ./ ./
 
