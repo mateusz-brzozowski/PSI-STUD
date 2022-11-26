@@ -1,8 +1,9 @@
 version: '3.8'
 
 networks:
-  z43_network:
-    driver: bridge
+  default:
+    name: z43_network
+    external: true
 
 services:
   z43_server_python:
@@ -11,15 +12,11 @@ services:
     volumes:
       - ./py/server.py:/server.py
     command: python -u /server.py 0.0.0.0 8000
-    networks:
-      - z43_network
 
   z43_server_c:
     container_name: z43_server_c
     build: ./c/server/
     command: ./c_server 8001
-    networks:
-      - z43_network
 
   z43_client_python_1:
     container_name: z43_client_python_1
@@ -27,8 +24,6 @@ services:
     volumes:
       - ./py/client.py:/client.py
     command: python /client.py z43_server_python 8000
-    networks:
-      - z43_network
     depends_on:
       - z43_server_python
       - z43_server_c
@@ -39,8 +34,6 @@ services:
     volumes:
       - ./py/client.py:/client.py
     command: python /client.py z43_server_c 8001
-    networks:
-      - z43_network
     depends_on:
       - z43_server_python
       - z43_server_c
@@ -49,8 +42,6 @@ services:
     container_name: z43_client_c_1
     build: ./c/client/
     command: ./c_client z43_server_python 8000
-    networks:
-      - z43_network
     depends_on:
       - z43_server_c
       - z43_server_python
@@ -59,8 +50,6 @@ services:
     container_name: z43_client_c_2
     build: ./c/client/
     command: ./c_client z43_server_c 8001
-    networks:
-      - z43_network
     depends_on:
       - z43_server_c
       - z43_server_python

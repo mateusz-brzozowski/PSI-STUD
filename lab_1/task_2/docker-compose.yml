@@ -1,0 +1,23 @@
+version: '3.8'
+
+networks:
+  default:
+    name: z43_network
+    external: true
+
+services:
+  z43_server_python:
+    container_name: z43_server_python
+    image: python:3
+    volumes:
+      - ./server.py:/server.py
+    command: python -u /server.py 0.0.0.0 8000
+
+  z43_client_python:
+    container_name: z43_client_python
+    image: python:3
+    volumes:
+      - ./client.py:/client.py
+    command: python /client.py z43_server_python 8000
+    depends_on:
+      - z43_server_python
