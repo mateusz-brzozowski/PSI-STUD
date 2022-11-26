@@ -49,7 +49,7 @@ def handle_received_datagram(s: socket.socket) -> None:
         print(f'Error while decoding received data: {decodeError}')
 
 
-def prepareSocketAndStartListening(host: str, port: int) -> None:
+def prepare_socket_and_start_listening(host: str, port: int) -> None:
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
         bind_address(s, host, port)
 
@@ -66,7 +66,7 @@ def main(args: List[str]) -> None:
         return
 
     try:
-        prepareSocketAndStartListening(host, port)
+        prepare_socket_and_start_listening(host, port)
     except socket.error as exception:
         print(f'Caught exception: {exception}')
 

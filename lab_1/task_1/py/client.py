@@ -33,25 +33,52 @@ def parse_arguments(args: List[str]) -> Tuple[str, int]:
     return host_address, port
 
 
+def connect_with_server(s: socket.socket, host: str, port: int) -> None:
+    try:
+        s.connect((host, port))
+    except socket.error as exception:
+        raise socket.error(
+            f'Error while connecting: {exception}'
+        )
+
+
 def send_text(s: socket.socket, text: str) -> None:
     print(f'Sending {text}')
-    s.send(text.encode('ascii'))
+    try:
+        s.send(text.encode('ascii'))
+    except socket.error as exception:
+        print(f'Exception while sending data: {exception}')
+    except UnicodeEncodeError as exception:
+        print(f'Exception while encoding text to bytes: {exception}')
 
 
-def main(args: List[str]) -> None:
-
+def prepare_socket_and_start_sending_data(host: str, port: int) -> None:
     data_grams: List[str] = [
         get_random_string(DATA_GRAM_LENGTH)
         for _ in range(DATA_GRAM_NUMBER)
     ]
 
-    (host, port) = parse_arguments(args)
-
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-        s.connect((host, port))
+        connect_with_server(s, host, port)
 
         for text in data_grams:
             send_text(s, text)
+
+
+def main(args: List[str]) -> None:
+    try:
+        (host, port) = parse_arguments(args)
+    except socket.error as exception:
+        print(f'Get host by name raised an exception: {exception}')
+        return
+    except ValueError as exception:
+        print(f'Error while parsing arguments: {exception}')
+        return
+
+    try:
+        prepare_socket_and_start_sending_data(host, port)
+    except socket.error as exception:
+        print(f'Caught exception: {exception}')
 
     print('Client finished.')
 
