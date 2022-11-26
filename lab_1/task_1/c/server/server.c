@@ -1,3 +1,4 @@
+#include <arpa/inet.h>
 #include <errno.h>
 #include <netinet/in.h>
 #include <stdio.h>
@@ -5,6 +6,7 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <unistd.h>
 
 #define WORK 1
 #define BUFSIZE 1024
@@ -25,58 +27,59 @@ int parse_argument(int argc, char *argv[]) {
         port = htons(atoi(argv[1]));
     }
 
+    printf("Will listen on 0.0.0.0:%d\n", ntohs(port));
+    fflush(stdout);
+
     return port;
 }
 
-void main(int argc, char *argv[]) {
-    int socket_file_descriptor, length;
+int main(int argc, char *argv[]) {
+    int socket_file_descriptor;
     struct sockaddr_in server_address;
     struct sockaddr_in client_address;
-    char buf[BUFSIZE + 1];
+    char buffer[BUFSIZE + 1];
+    socklen_t client_address_length = sizeof client_address;
+    char *client_address_string;
 
-    buf[BUFSIZE] = '\0';
+    buffer[BUFSIZE] = '\0';
 
-    socket_file_descriptor = socket(AF_INET, SOCK_DGRAM, 0);
-    if (socket_file_descriptor == -1) {
+    if ((socket_file_descriptor = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
         perror("opening datagram socket");
         exit(1);
     }
 
+    memset(&server_address, '\0', sizeof(server_address));
     server_address.sin_family = AF_INET;
-    server_address.sin_addr.s_addr = htonl(INADDR_ANY);
+    server_address.sin_addr.s_addr = INADDR_ANY;
     server_address.sin_port = parse_argument(argc, argv);
 
     if (bind(socket_file_descriptor, (struct sockaddr *)&server_address, sizeof(server_address)) == -1) {
         perror("binding datagram socket");
-        exit(1);
+        exit(2);
     }
 
-    length = sizeof(server_address);
-
-    printf("Socket port: %d\n", ntohs(server_address.sin_port));
-    memset(&client_address, 0, sizeof(client_address));
+    memset(&client_address, 0, client_address_length);
 
     while (WORK) {
-        printf("Set client addres to 0\n");
-        int bytes_read = recvfrom(socket_file_descriptor, buf, BUFSIZE, MSG_WAITALL,
-                                  (const struct sockaddr *)&client_address, sizeof(client_address));
-        printf("-->%s\n", buf);
-        printf("Printf %d", errno);
+        memset(&client_address, 0, client_address_length);
+
+        int bytes_read = recvfrom(socket_file_descriptor, buffer, BUFSIZE, 0, (struct sockaddr *)&client_address,
+                                  &client_address_length);
 
         if (bytes_read == -1) {
-            printf("Printf %d", errno);
-            perror("receiving datagram packet");
-            printf("Printf %d", errno);
-            exit(2);
+            perror("Exception while receiving datagram packet");
         } else {
-            printf("Bytes read: %d", bytes_read);
-        }
-        buf[bytes_read] = '\0';
+            buffer[bytes_read] = '\0';
 
-        printf("-->%s\n", buf);
-        printf("Client address: %s:%s", ntohl(client_address.sin_addr.s_addr), ntohs(client_address.sin_port));
+            printf("Message received: %s\n", buffer);
+            client_address_string = inet_ntoa(client_address.sin_addr);
+            if (client_address_string != 0) {
+                printf("Client address: %s:%d\n", client_address_string, ntohs(client_address.sin_port));
+            }
+            fflush(stdout);
+        }
     }
 
     close(socket_file_descriptor);
-    exit(0);
+    return 0;
 }

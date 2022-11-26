@@ -92,8 +92,9 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    printf("6\n");
+    printf("Client finished.");
+    fflush(stdout);
 
     close(sock);
-    exit(0);
+    return 0;
 }

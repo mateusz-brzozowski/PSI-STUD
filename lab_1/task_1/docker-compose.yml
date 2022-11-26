@@ -23,7 +23,7 @@ services:
     image: python:3
     volumes:
       - ./py/client.py:/client.py
-    command: python /client.py z43_server_python 8000
+    command: python -u /client.py z43_server_python 8000
     depends_on:
       - z43_server_python
       - z43_server_c
@@ -33,7 +33,7 @@ services:
     image: python:3
     volumes:
       - ./py/client.py:/client.py
-    command: python /client.py z43_server_c 8001
+    command: python -u /client.py z43_server_c 8001
     depends_on:
       - z43_server_python
       - z43_server_c
