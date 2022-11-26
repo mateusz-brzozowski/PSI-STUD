@@ -27,14 +27,14 @@ def parse_arguments(args: List[str]) -> Tuple[str, int]:
         host = sys.argv[1]
         port = int(sys.argv[2])
 
-    print(f'Will send to {host}:{port}')
-    host = socket.gethostbyname(host)
-    print(f'at {host}:{port}')
+    host_address = socket.gethostbyname(host)
+    print(f'Will send to {host}:{port} at {host_address}:{port}')
 
-    return host, port
+    return host_address, port
 
 
 def send_text(s: socket.socket, text: str) -> None:
+    print(f'Sending {text}')
     s.send(text.encode('ascii'))
 
 
@@ -49,6 +49,7 @@ def main(args: List[str]) -> None:
 
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
         s.connect((host, port))
+
         for text in data_grams:
             send_text(s, text)
 
