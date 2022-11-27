@@ -1,3 +1,7 @@
+// Laboratorium 1 Zadanie 1.1 Klient w C
+// Autorzy: Mateusz Brzozowski, Bartłomiej Krawczyk, Jakub Marcowski, Aleksandra Sypuła
+// Data ukończenia: 27.11.2022
+
 #include <netdb.h>
 #include <netinet/in.h>
 #include <stdio.h>

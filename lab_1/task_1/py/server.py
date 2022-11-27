@@ -1,3 +1,7 @@
+# Laboratorium 1 Zadanie 1.1 Serwer w Pythonie
+# Autorzy: Mateusz Brzozowski, Bartłomiej Krawczyk, Jakub Marcowski, Aleksandra Sypuła
+# Data ukończenia: 27.11.2022
+
 import socket
 import sys
 from typing import List, Tuple
