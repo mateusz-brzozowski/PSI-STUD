@@ -49,6 +49,7 @@ def send_text(s: socket.socket, text: str) -> None:
         s.send(text.encode('ascii'))
     except socket.error as exception:
         print(f'Exception while sending data: {exception}')
+        global MSG_TOO_LONG
         MSG_TOO_LONG=True
     except UnicodeEncodeError as exception:
         print(f'Exception while encoding text to bytes: {exception}')
