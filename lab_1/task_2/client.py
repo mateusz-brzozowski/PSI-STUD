@@ -11,6 +11,7 @@ import string
 DATA_GRAM_ADD = 1 # # how much to add to next datagrams
 DATA_GRAM_MULT = 1.1 # how many times bigger are next datagrams
 DATA_GRAM_START_LEN = 65506
+MSG_TOO_LONG=False
 
 
 def get_random_string(length: int) -> str:
@@ -48,6 +49,7 @@ def send_text(s: socket.socket, text: str) -> None:
         s.send(text.encode('ascii'))
     except socket.error as exception:
         print(f'Exception while sending data: {exception}')
+        MSG_TOO_LONG=True
     except UnicodeEncodeError as exception:
         print(f'Exception while encoding text to bytes: {exception}')
 
@@ -63,6 +65,8 @@ def prepare_socket_and_start_sending_data(host: str, port: int) -> None:
             # datagram_len *= DATA_GRAM_MULT
 
 def work() -> bool:
+    if MSG_TOO_LONG:
+        return False
     return True
 
 def main(args: List[str]) -> None:
