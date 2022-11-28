@@ -6,11 +6,11 @@ import socket
 import sys
 from typing import List, Tuple
 
-# Klient wysyła a serwer odbiera datagramy o przyrastającej wielkości. 
-# Sprawdzić jaki był maksymalny rozmiar wysłanego (przyjętego) datagramu. 
+# Klient wysyła a serwer odbiera datagramy o przyrastającej wielkości.
+# Sprawdzić jaki był maksymalny rozmiar wysłanego (przyjętego) datagramu.
 # Ustalić z dokładnością do jednego bajta jak duży datagram jest obsługiwany.
 
-BUFSIZE = 100000  # max UDP datagram size is 65527 bytes
+BUFSIZE = 100000  # max UDP datagram size is 65535 bytes
 
 
 def parse_arguments(args: List[str]) -> Tuple[str, int]:
