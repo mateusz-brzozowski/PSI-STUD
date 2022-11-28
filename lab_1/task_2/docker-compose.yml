@@ -18,6 +18,6 @@ services:
     image: python:3
     volumes:
       - ./client.py:/client.py
-    command: python /client.py z43_server_python_task2 8000
+    command: python -u /client.py z43_server_python_task2 8000
     depends_on:
       - z43_server_python_task2
