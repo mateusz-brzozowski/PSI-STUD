@@ -44,9 +44,9 @@ void parse_arguments(int argc, char *argv[], Arguments *arguments) {
         port = 8000;
     } else {
         host = argv[1];
-        if (port=atoi(argv[2]))
-            port=htons(port);
-        else{
+        if (port = atoi(argv[2]))
+            port = htons(port);
+        else {
             perror("Error, not able to parse provided arguments.");
             exit(1);
         }
@@ -59,6 +59,8 @@ void parse_arguments(int argc, char *argv[], Arguments *arguments) {
         fprintf(stderr, "%s: unknown host\n", host);
         exit(2);
     }
+
+    printf("Will send to %s:%d\n", host, ntohs(port));
 
     arguments->host_address = host_info;
     arguments->port = port;
@@ -101,7 +103,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    printf("Client finished.");
+    printf("Client finished.\n");
     fflush(stdout);
 
     close(sock);
