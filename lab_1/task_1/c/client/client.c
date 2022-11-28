@@ -1,6 +1,6 @@
 // Laboratorium 1 Zadanie 1.1 Klient w C
 // Autorzy: Mateusz Brzozowski, Bartłomiej Krawczyk, Jakub Marcowski, Aleksandra Sypuła
-// Data ukończenia: 27.11.2022
+// Data ukończenia: 28.11.2022
 
 #include <netdb.h>
 #include <netinet/in.h>
@@ -41,7 +41,7 @@ void parse_arguments(int argc, char *argv[], Arguments *arguments) {
 
     if (argc < 3) {
         host = "localhost";
-        port = 8000;
+        port = htons(8000);
     } else {
         host = argv[1];
         if (port = atoi(argv[2]))
