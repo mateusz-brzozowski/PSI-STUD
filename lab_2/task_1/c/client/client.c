@@ -12,8 +12,8 @@
 #include <unistd.h>
 
 #define ALPHABET "abcdefghijklmnopqrstuvwxyz"
-#define DATA_GRAM_LENGTH 60
-#define DATA_GRAM_NUMBER 10
+#define MESSAGE_LENGTH 60
+#define MESSAGE_NUMBER 10
 
 struct arguments {
     struct hostent *host_address;
@@ -38,6 +38,7 @@ void get_random_string(char *buffer, size_t buffer_length) {
 void parse_arguments(int argc, char *argv[], Arguments *arguments) {
     char *host;
     u_int16_t port;
+    struct hostent *host_info;
 
     if (argc < 3) {
         host = "localhost";
@@ -52,7 +53,6 @@ void parse_arguments(int argc, char *argv[], Arguments *arguments) {
         }
     }
 
-    struct hostent *host_info;
     host_info = gethostbyname(host);
 
     if (host_info == (struct hostent *)0) {
@@ -66,13 +66,10 @@ void parse_arguments(int argc, char *argv[], Arguments *arguments) {
     arguments->port = port;
 }
 
-int main(int argc, char *argv[]) {
+void sendMessage(char *buffer, size_t buffer_length, struct sockaddr_in *name) {
     int sock;
-    struct sockaddr_in name;
-    Arguments arguments;
-    u_int8_t i;
-
-    parse_arguments(argc, argv, &arguments);
+    ssize_t sent;
+    size_t already_sent = 0;
 
     sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock == -1) {
@@ -80,32 +77,46 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
+    if (connect(sock, (struct sockaddr *)name, sizeof(*name)) == -1) {
+        perror("Connect");
+        exit(3);
+    }
+
+    printf("Sending %s\n", buffer);
+
+    while (already_sent < buffer_length) {
+        sent = send(sock, buffer + already_sent, buffer_length - already_sent, 0);
+        if (sent == -1) {
+            perror("sending datagram message");
+            exit(4);
+        }
+        already_sent += sent;
+    }
+
+    close(sock);
+}
+
+int main(int argc, char *argv[]) {
+    u_int8_t i;
+    struct sockaddr_in name;
+    Arguments arguments;
+    char buffer[MESSAGE_LENGTH + 1];
+    buffer[MESSAGE_LENGTH] = '\0';
+
+    parse_arguments(argc, argv, &arguments);
+
     memcpy((char *)&name.sin_addr, (char *)arguments.host_address->h_addr, arguments.host_address->h_length);
 
     name.sin_family = AF_INET;
     name.sin_port = arguments.port;
 
-    if (connect(sock, (struct sockaddr *)&name, sizeof(name)) == -1) {
-        perror("Connect");
-        exit(3);
-    }
-
-    char buffer[DATA_GRAM_LENGTH + 1];
-    buffer[DATA_GRAM_LENGTH] = '\0';
-
-    for (i = 0; i < DATA_GRAM_NUMBER; ++i) {
-        get_random_string(buffer, DATA_GRAM_LENGTH);
-        printf("Sending %s\n", buffer);
-
-        if (send(sock, buffer, DATA_GRAM_LENGTH, 0) == -1) {
-            perror("sending datagram message");
-            exit(4);
-        }
+    for (i = 0; i < MESSAGE_NUMBER; ++i) {
+        get_random_string(buffer, MESSAGE_LENGTH);
+        sendMessage(buffer, MESSAGE_LENGTH, &name);
     }
 
     printf("Client finished.\n");
     fflush(stdout);
 
-    close(sock);
     return 0;
 }
