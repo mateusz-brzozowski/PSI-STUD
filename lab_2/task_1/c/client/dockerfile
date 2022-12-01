@@ -1,0 +1,5 @@
+FROM gcc:4.9
+
+COPY ./ ./
+
+RUN gcc -o c_client client.c -Wall -Wextra -pedantic
