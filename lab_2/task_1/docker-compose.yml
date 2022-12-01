@@ -1,0 +1,52 @@
+version: '3.8'
+
+networks:
+  default:
+    name: z43_network
+    external: true
+
+services:
+  z43_server_python:
+    container_name: z43_server_python
+    image: python:3
+    volumes:
+      - ./py/server.py:/server.py
+    command: python -u /server.py 0.0.0.0 8000
+
+  # z43_server_c:
+  #   container_name: z43_server_c
+  #   build: ./c/server/
+  #   command: ./c_server 8001
+
+  z43_client_python_1:
+    container_name: z43_client_python_1
+    image: python:3
+    volumes:
+      - ./py/client.py:/client.py
+    command: python -u /client.py z43_server_python 8000
+    depends_on:
+      - z43_server_python
+  #    - z43_server_c
+  # z43_client_python_2:
+  #   container_name: z43_client_python_2
+  #   image: python:3
+  #   volumes:
+  #     - ./py/client.py:/client.py
+  #   command: python -u /client.py z43_server_c 8001
+  #   depends_on:
+  #     - z43_server_python
+  #     - z43_server_c
+  z43_client_c_1:
+    container_name: z43_client_c_1
+    build: ./c/client/
+    command: ./c_client z43_server_python 8000
+    depends_on:
+      # - z43_server_c
+      - z43_server_python
+  # z43_client_c_2:
+  #   container_name: z43_client_c_2
+  #   build: ./c/client/
+  #   command: ./c_client z43_server_c 8001
+  #   depends_on:
+  #     - z43_server_c
+  #     - z43_server_python
