@@ -107,7 +107,7 @@ void sendMessageConcurrent(char *buffer, size_t buffer_length, struct sockaddr_i
         exit(5);
     } else {
         printf("Forked process with pid %d\n", pid);
-        fflush();
+        fflush(stdout);
     }
 }
 
