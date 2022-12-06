@@ -46,12 +46,16 @@ void receive_message_concurrent(int socket_file_descriptor) {
     struct sockaddr_in client_address;
     socklen_t client_address_length = sizeof client_address;
     char buffer[BUFSIZE + 1];
+    int max_message_buffer_size = 100000;
+    char message_buffer[max_message_buffer_size + 1];
     char *client_address_string;
     int message_socket_file_descriptor;
     int bytes_read;
+    int already_read = 0;
     int pid;
 
     buffer[BUFSIZE] = '\0';
+    memset(&message_buffer, 0, max_message_buffer_size);
     memset(&client_address, 0, client_address_length);
 
     message_socket_file_descriptor =
@@ -74,10 +78,24 @@ void receive_message_concurrent(int socket_file_descriptor) {
                 perror("Exception while receiving stream packet");
             } else {
                 buffer[bytes_read] = '\0';
-                printf("Thread %d: %s\n", getpid(), buffer);
+
+                if (already_read + bytes_read > max_message_buffer_size) {
+                    printf("Didn't expect such a long message!");
+                    printf("Part of long message: %s", message_buffer);
+                    memset(&message_buffer, 0, max_message_buffer_size);
+                    already_read = 0;
+                }
+                memcpy(message_buffer + already_read, buffer, bytes_read + 1);
+                already_read += bytes_read;
+
+                printf("%s\n", buffer);
+
                 fflush(stdout);
             }
         } while (bytes_read > 0);
+
+        printf("Thread %d: %s\n", getpid(), message_buffer);
+        printf("Message received: %s\n", message_buffer);
 
         close(message_socket_file_descriptor);
         exit(0);
