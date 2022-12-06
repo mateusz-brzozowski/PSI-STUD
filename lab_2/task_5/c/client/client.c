@@ -9,6 +9,7 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+// #include <sys/wait.h>
 #include <unistd.h>
 
 #define ALPHABET "abcdefghijklmnopqrstuvwxyz"
@@ -96,6 +97,20 @@ void sendMessage(char *buffer, size_t buffer_length, struct sockaddr_in *name) {
     close(sock);
 }
 
+void sendMessageConcurrent(char *buffer, size_t buffer_length, struct sockaddr_in *name) {
+    int pid = fork();
+    if (pid == 0) {
+        sendMessage(buffer, buffer_length, name);
+        exit(0);
+    } else if (pid == -1) {
+        perror("Fork");
+        exit(5);
+    } else {
+        printf("Forked process with pid %d\n", pid);
+        // wait(pid);
+    }
+}
+
 int main(int argc, char *argv[]) {
     u_int8_t i;
     struct sockaddr_in name;
@@ -112,7 +127,7 @@ int main(int argc, char *argv[]) {
 
     for (i = 0; i < MESSAGE_NUMBER; ++i) {
         get_random_string(buffer, MESSAGE_LENGTH);
-        sendMessage(buffer, MESSAGE_LENGTH, &name);
+        sendMessageConcurrent(buffer, MESSAGE_LENGTH, &name);
     }
 
     printf("Client finished.\n");
