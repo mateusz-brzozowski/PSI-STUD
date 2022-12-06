@@ -7,6 +7,7 @@ import os
 import socket
 import sys
 import threading
+from concurrent.futures import ThreadPoolExecutor
 from typing import List, Tuple
 
 # Na bazie wersji 2.1 – 2.2 zmodyfikować serwer tak, aby miał
@@ -48,19 +49,19 @@ def multithreaded_stream(connection: socket.socket) -> None:
 
 
 def prepare_socket_and_start_listening(host: str, port: int) -> None:
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        bind_address(s, host, port)
-        s.listen(10)
-        print(f"TCP server up and listening on port {port}")
+    with ThreadPoolExecutor(max_workers=2) as thread_pool:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            bind_address(s, host, port)
+            s.listen(10)
+            print(f"TCP server up and listening on port {port}")
 
-        print(f"To stop the server type 'kill {os.getpid()}'",
-              "in a different terminal")
-        while True:
-            connected_socket, address = s.accept()
-            print(f"Connected to client from host {address[0]},",
-                  f"on port {address[1]}")
-            threading.Thread(target=multithreaded_stream,
-                             args=(connected_socket, )).start()
+            print(f"To stop the server type 'kill {os.getpid()}'",
+                "in a different terminal")
+            while True:
+                connected_socket, address = s.accept()
+                print(f"Connected to client from host {address[0]},",
+                    f"on port {address[1]}")
+                thread_pool.submit(multithreaded_stream, connected_socket)
 
 
 def main(args: List[str]) -> None:
