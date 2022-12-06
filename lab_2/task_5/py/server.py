@@ -56,11 +56,11 @@ def prepare_socket_and_start_listening(host: str, port: int) -> None:
             print(f"TCP server up and listening on port {port}")
 
             print(f"To stop the server type 'kill {os.getpid()}'",
-                "in a different terminal")
+                  "in a different terminal")
             while True:
                 connected_socket, address = s.accept()
                 print(f"Connected to client from host {address[0]},",
-                    f"on port {address[1]}")
+                      f"on port {address[1]}")
                 thread_pool.submit(multithreaded_stream, connected_socket)
 
 
