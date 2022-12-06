@@ -23,19 +23,21 @@ def get_random_string(length: int) -> str:
     return ''.join(random.choice(letters) for _ in range(length))
 
 
-def parse_arguments(args: List[str]) -> Tuple[str, int]:
-    if len(args) < 3:
-        print('No host or port defined, using localhost at 8000 as default')
+def parse_arguments(args: List[str]) -> Tuple[str, int, bool]:
+    if len(args) < 4:
+        print('No host and/or port defined, using localhost at 8000 as default')
         host = 'localhost'
         port = 8000
+        send_all = True
     else:
         host = sys.argv[1]
         port = int(sys.argv[2])
+        send_all = sys.argv[3].lower() == 'true'
 
     host_address = socket.gethostbyname(host)
     print(f'Will send to {host}:{port} at {host_address}:{port}')
 
-    return host_address, port
+    return host_address, port, send_all
 
 
 def connect_with_server(s: socket.socket, host: str, port: int) -> None:
@@ -47,17 +49,33 @@ def connect_with_server(s: socket.socket, host: str, port: int) -> None:
         )
 
 
-def send_text(s: socket.socket, text: str) -> None:
+def send_all_using_send(s: socket.socket, data: bytes) -> None:
+    returned: int = s.send(data)
+    print(f'Data sent: {data[:returned]}')
+    print(f'Data length sent: {returned}')
+    data = data[returned:]
+
+    while returned > 0 and len(data) > 0:
+        returned: int = s.send(data)
+        print(f'Data sent: {data[:returned]}')
+        print(f'Data length sent: {returned}')
+        data = data[returned:]
+
+
+def send_text(s: socket.socket, text: str, send_all: bool) -> None:
     print(f'Sending {text}')
     try:
-        s.sendall(text.encode('ascii'))
+        if send_all:
+            s.sendall(text.encode('ascii'))
+        else:
+            send_all_using_send(s, text.encode('ascii'))
     except socket.error as exception:
         print(f'Exception while sending data: {exception}')
     except UnicodeEncodeError as exception:
         print(f'Exception while encoding text to bytes: {exception}')
 
 
-def prepare_socket_and_start_sending_data(host: str, port: int) -> None:
+def prepare_socket_and_start_sending_data(host: str, port: int, send_all: bool) -> None:
     data_grams: List[str] = [
         get_random_string(DATA_GRAM_LENGTH)
         for _ in range(DATA_GRAM_NUMBER)
@@ -66,12 +84,12 @@ def prepare_socket_and_start_sending_data(host: str, port: int) -> None:
     for text in data_grams:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             connect_with_server(s, host, port)
-            send_text(s, text)
+            send_text(s, text, send_all)
 
 
 def main(args: List[str]) -> None:
     try:
-        (host, port) = parse_arguments(args)
+        (host, port, send_all) = parse_arguments(args)
     except socket.error as exception:
         print(f'Get host by name raised an exception: {exception}')
         return
@@ -80,7 +98,7 @@ def main(args: List[str]) -> None:
         return
 
     try:
-        prepare_socket_and_start_sending_data(host, port)
+        prepare_socket_and_start_sending_data(host, port, send_all)
     except socket.error as exception:
         print(f'Caught exception: {exception}')
 
