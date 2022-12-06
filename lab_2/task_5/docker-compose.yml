@@ -18,5 +18,4 @@ services:
     build: ./c/client/
     command: ./c_client z43_server_python 8000
     depends_on:
-      - z43_server_c
-      - z43_server_python
+      - z43_server_python_parallel
