@@ -16,6 +16,6 @@ services:
   z43_client_c:
     container_name: z43_client_c
     build: ./c/client/
-    command: ./c_client z43_server_python 8000
+    command: ./c_client z43_server_python_parallel 8000
     depends_on:
       - z43_server_python_parallel
