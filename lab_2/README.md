@@ -33,7 +33,7 @@ docker-compose up --build
 
 > Demonstrujemy działanie 2 programów: serwer i klient w dowolnym języku.
 
-W funkcji send_text wykorzystywanej do przesyłu danych przez klienta zostały przetestowane obie funkcje: send() oraz sendall() z buforem po stronie serwera mniejszym od przesyłanych przez klienta porcji danych. Po przetestowaniu konfiguracji z wielkością przesyłanych przez klienta danych w ilości 60 a następnie 10 000 z wielkością bufora 10, w obu przypadkach serwer zdołał odebrać wszystkie dane przesłane przez klienta.
+W funkcji send_text wykorzystywanej do przesyłu danych przez klienta zostały przetestowane obie funkcje: send() oraz sendall() z buforem po stronie serwera mniejszym od przesyłanych przez klienta porcji danych. Po przetestowaniu konfiguracji z wielkością przesyłanych przez klienta danych w ilości 60 a następnie 10 000 z wielkością bufora 10, w przypadku wykorzystania obu funkcji, klient zdołał wysłać wszystkie dane (również w send()), a serwer odebrać wszystkie dane przesłane przez klienta. 
 
 # Zadanie 2.5
 > Na bazie wersji 2.1 – 2.2 zmodyfikować serwer tak, aby miał konstrukcję współbieżną, tj. obsługiwał każdego klienta w osobnym procesie. Przy czym:
