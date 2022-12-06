@@ -44,4 +44,4 @@ W funkcji send_text wykorzystywanej do przesyłu danych przez klienta zostały p
 
 > Demonstrujemy działanie 2 programów: serwer w C i klient w Pythonie, albo serwer w Pythonie i klient w C.
 
-Zadanie wykonane w konfiguracji z serwerem współbieżnym w Pythonie oraz klientami w C.
+Zadanie wykonane w konfiguracji z serwerem współbieżnym w Pythonie oraz klientami w C. Program client.c został zmodyfikowany tak, aby wiadomości były wysyłane przez różne procesy: w funkcji sendMessageConcurrent, przed wysłaniem wiadomości tworzony jest nowy proces z wykorzystaniem fork() i w przypadku gdy z funkcji zostanie zwrócone 0 - mamy proces-dziecko, wiadomość jest wysyłana. W serwerze - server.py wykorzystywany jest ThreadPoolExecutor, który przyjmuje nowe zadania do wykonania - multithreaded_stream odbierające wiadomości od klientów.
