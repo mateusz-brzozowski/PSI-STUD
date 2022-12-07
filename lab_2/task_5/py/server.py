@@ -62,7 +62,6 @@ def prepare_socket_and_start_listening(host: str, port: int) -> None:
                 print(f"Connected to client from host {address[0]},",
                       f"on port {address[1]}")
                 thread_pool.submit(multithreaded_stream, connected_socket)
-                connected_socket.close()
 
 
 def main(args: List[str]) -> None:
