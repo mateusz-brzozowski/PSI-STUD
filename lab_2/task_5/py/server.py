@@ -7,7 +7,7 @@ import os
 import socket
 import sys
 import threading
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 from typing import List, Tuple
 
 # Na bazie wersji 2.1 – 2.2 zmodyfikować serwer tak, aby miał
@@ -41,15 +41,14 @@ def bind_address(s: socket.socket, host: str, port: int) -> None:
                            f"address to socket: {exception}") from exception
 
 
-def multithreaded_stream(connection: socket.socket) -> socket.socket:
+def multithreaded_stream(connection: socket.socket) -> None:
     while message := connection.recv(BUF_SIZE):
         print(f"Thread id: {threading.get_native_id()},",
               f"received message: {message.decode('utf-8')}")
-    return connection
+    connection.close()
 
 
 def prepare_socket_and_start_listening(host: str, port: int) -> None:
-    sockets_to_close = []
     with ThreadPoolExecutor(max_workers=2) as thread_pool:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             bind_address(s, host, port)
@@ -62,14 +61,8 @@ def prepare_socket_and_start_listening(host: str, port: int) -> None:
                 connected_socket, address = s.accept()
                 print(f"Connected to client from host {address[0]},",
                       f"on port {address[1]}")
-                sockets_to_close.append(
-                    thread_pool.submit(multithreaded_stream, connected_socket)
-                    )
-                for sckt in as_completed(sockets_to_close):
-                    print("Closing connection to client from",
-                          f"{address[0]}:{address[1]}")
-                    connected_socket.close()
-                    sockets_to_close.remove(sckt)
+                thread_pool.submit(multithreaded_stream, connected_socket)
+                connected_socket.close()
 
 
 def main(args: List[str]) -> None:
