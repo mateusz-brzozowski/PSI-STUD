@@ -1,3 +1,42 @@
+<!-- # Mail od Wytrębowicza
+
+- Korzystajcie z jednego portu max kilku z przedziału 1-1023;
+
+- Przykładami protokołów pozwalających na równoległą transmisję strumieni danych w ramach jednego przepływu TCP lub UDP są: XMPP, WebSocket, QUIC. 
+
+- Nie korzystać z nazwy fragment jeśli chodzi o wydzieloną część pliku xD
+- poprawnie korzystać z nazwy serwer iteracyjny i współbieżny
+
+- Zasugerowałem Wam wzorowanie się na TFTP w celu zapewnienia niezawodności. Ku memu zaskoczeniu przyjęliście również model przekazywania pliku, którego koniec rozpoznawany jest niepełną długością datagramu.
+
+Z zaproponowanego tu przypadku użycia wynika, iteracyjny serwer UDP „udźwignie” tę komunikację. Jednak dla każdego sterownika będzie musiał utrzymywać kontekst komunikacji.
+
+Zastosowanie
+- system pomiarowy z centralnym serwerem akwizycji danych i dużą liczbą sterowników z sensorami.
+- Sterownik może mieć od 1 do 8 sensorów.
+- Z każdym sensorem związany jest proces pomiarowy, który co określony interwał (dla danego sensora) przekazuje wartość pomiaru (paczkę danych) do waszego systemu.
+- Wartość ta może mieć długość od 1 do 4 bajtów (albo więcej jeślibyśmy chcieli przekazywać współrzędne GPS).
+- Interwał może być w zakresie od 0.5s do 30 minut.
+- Sterownik stempluje czasem otrzymane pomiary, grupuje je i wysyła datagramem UDP o rozmiarze nie większym  niż 512 bajtów do serwera.
+- Można przyjąć, że sterownik wysyła datagram gdy osiągnął on maksymalny rozmiar albo wcześniej – tak aby paczka danych nie czekała na transport dłużej niż określony parametr, np. 10 min.
+- Zapewne dla celów debugowania i demonstracji, wymieniane tu czasy należałoby skrócić. 
+- Aplikacja akwizycji danych otrzymuje z waszego systemu strumienie paczek (danych pomiarowych) pochodzących od kolejnych sensorów.
+
+Spodziewam się, że w projekcie wstępnym zdefiniowane będą PDUs (Protocol Data Units) oraz SDUs (Service Data Units) dla strony producenta danych (można go nazwać klientem) i konsumenta danych (można go nazwać serwerem).
+Przykłady PDU:
+- żądanie otwarcia sesji z N strumieniami,
+- potwierdzenie otwarcia sesji z N strumieniami,
+- zagregowany pakiet danych,
+- potwierdzenie pakietu danych,
+- żądanie echa,
+- echo.
+
+Przykłady SDU dla producenta:
+- otwórz sesję komunikacyjną (proces lub wątek zarządzający),
+- zamknij sesję komunikacyjną,
+- wyślij paczkę danych (proces lub wątek pomiarowy). -->
+
+
 <!-- Nagłówek – nazwę przedmiotu, nazwę projektu (proszę zaproponować jego nazwę własną), nazwiska autorów, wskazanie lidera, datę sporządzenia. -->
 
 # Programowanie Sieciowe
@@ -18,47 +57,33 @@ Zaprojektuj i zaimplementuj protokół warstwy sesji, umożliwiający równoleg�
 <!-- Przyjęte założenia funkcjonalne i niefunkcjonalne. -->
 
 ## Założenia funkcjonalne:
-- niezawodność
+- niezawodność <!-- TODO -->
     - wszystkie wysłane dane dotrą w poprawnej formie,
-    - dokonujemy retransmisji jeśli nie zgadza się suma kontrolna,
-    - do każdego datagramu z danymi dodajemy:
-    - numer fragmentu
-    - sumę kontrolną danych oraz nagłówków
-    - potwierdzamy wszystkie przesyłane datagramy
+    - jeśli nie zgadza się suma kontrolna serwer prosi o dokonanie retransmisji,
+    - serwer potwierdza wszystkie przesyłane datagramy,
     - ograniczamy wielkość datagramów do 512 bajtów, aby uniknąć fragmentacji
-    - w fazie nawiązywania połączenia przesyłamy:
-    - znacznik czasu jeden na strumień paczek - będzie to czas wstawienia danych do wysłania
-    - wielkość pojedynczego strumienia danych
-- kolejność
-    - do każdego datagramu z danymi dodajemy:
-        - numer fragmentu
-        - sumę kontrolną
-    - ograniczamy wielkość datagramów do 512 bajtów, aby uniknąć fragmentacji
-    - wszystkie dane zostaną przesłane w poprawnej kolejności - w ramach jednego połączenia korzystamy z rozwiązania podobnego do TFTP - kolejne datagramy muszą być potwierdzone zanim zostaną przesłane następne - zachowujemy kolejność
-- współbieżność
-    - każdy wysyłający może na raz przesyłać do 8 różnych strumieni danych - każdy na inny docelowy port odbierającego
+
+- kolejność <!-- TODO -->
+    - poszczególne pomiary są stemplowane czasem podczas wstawiania do nadawcy
+
+- serwer iteracyjny <!-- TODO -->
+    - serwer odbiera pakiety, obsługuje pakiet w ramach sesji, odsyła odpowiednią odpowiedź i wraca do nasłuchiwania na gnieździe
     - poszczególny strumień danych będzie rozpoznawany poprzez adres wysyłającego, port wysyłającego, adres odbierającego oraz port odbierającego (protokół narzucony z zadania - UDP)
-    - odbierający ma wydzielony jeden port do odbierania połączeń (serwer iteracyjny) i dla każdego połączenia tworzy nowe gniazdo, aby równolegle obsługiwać połączenia (serwer współbieżny) - przesyła uzgodnione gniazdo do wysyłającego
+
 - bezpieczeństwo
     - w fazie nawiązywania połączenia uzgadniany jest klucz asymetryczny do przesyłu klucza symetrycznego
     - przesyłamy klucz symetryczny chroniony jednorazowym kluczem asymetrycznym
     - dane chronione będą kluczem symetrycznym
-    - stemplowanie czasem
-    - poszczególne strumienie danych będą stemplowane czasem - informację przesyłamy w fazie nawiązywania połączenia
-- obsługiwane typy datagramów:
-    - WRITE REQUEST
-    - HELLO
-    - KEY
-    - DATA
-    - ACK
-    - ERROR
-- kolejne fazy połączenia
-    1. Wysyłający inicjuje połączenie
-    2. Odbierający przydziela nowe gniazdo i odsyła informację do wysyłającego zawierającą gniazdo
-    3. Wysyłający inicjuje połączenie na nowe gniazdo
-    4. Następuje uzgodnienie klucza symetrycznego (połączenia w jedną i w drugą, aby wymienić się kluczami publicznymi i uzgodnić klucz asymetryczny do przesyłu klucza symetrycznego)
-    5. Przesył danych zabezpieczonym kanałem z potwierdzaniem kolejnych pakietów
-    6. Koniec transmisji - gdy wysyłający prześle datagram mniejszy niż 512 B
+
+- obsługiwane typy datagramów: <!-- TODO -->
+    - READ REQUEST (RRQ) - zawierający nazwę pliku oraz wskazujący, czy przesyłany jest tekst, czy bity
+    - WRITE REQUEST (WRQ)
+    - DATA - zawierający 16-bitowy number bloku i do 512 bajtów danych
+    - ACK - zawierający 16-bitowy numer bloku
+    - ERROR - dla niektórych, wyznaczonych błędów
+
+- kolejne fazy połączenia <!-- TODO -->
+    1. 
 
 ## Założenia niefunkcjonalne:
 - bezpieczeństwo
@@ -70,23 +95,36 @@ Zaprojektuj i zaimplementuj protokół warstwy sesji, umożliwiający równoleg�
 
 <!-- Podstawowe przypadki użycia. -->
 
-# Przypadki użycia
+# Przypadki użycia <!-- TODO -->
 
-1. Urządzenie wykonujące pomiary
+1. System pomiarowy:
+    - System składa się z centralnego serwera akwizycji danych oraz wielu sterowników z sensorami.
+    - Każdy sterownik może mieć od jednego do ośmiu sensorów, z których każdy jest związany z procesem pomiaru.
+    - Proces pomiaru przesyła do systemu wartość pomiaru (1 - 4 bajty) co określony interwał (0.5s - 30min) (dla danego sensora).
+    - Sterownik stempluje czasem otrzymane pomiary, grupuje je i wysyła w formie datagramu UDP o rozmiarze nie większym niż 512 bajtów do serwera.
+    - Datagram jest wysyłany, gdy osiągnie maksymalny rozmiar lub wcześniej, aby uniknąć sytuacji, w której paczka danych czekałaby na transport dłużej niż określony parametr (na przykład dziesięć minut).
+    - Aplikacja akwizycji danych otrzymuje strumienie paczek (danych pomiarowych) z systemu pochodzących od kolejnych sensorów.
+    - Przykład - system monitorowania jakości powietrza:
+        - System składa się z centralnego serwera oraz wielu czujników zainstalowanych w różnych lokalizacjach.
+        - Czujniki monitorują poziomy różnych zanieczyszczeń w powietrzu, takich jak dwutlenek węgla, tlenki azotu i pyły zawieszone.
+        - Każdy czujnik przesyła do systemu wartości pomiarowe co określony interwał (np. co 5 minut, ale na potrzeby prezentacji czas ten powinien być krótszy).
+        - Serwer otrzymuje strumień danych pomiarowych z każdego czujnika i przechowuje je w bazie danych.
+
+<!-- 2. Urządzenie wykonujące pomiary
     - wysyłający działa na urządzeniu agregującym dane z wielu urządzeń pomiarowych
     - każde urządzenie pomiarowe co pewien okres generuje podobną ilość danych - plik na przykład ok. 200kB
     - wysyłający przesyła równolegle do 8 takich pomiarów na raz
     - wysyłający przesyła dane do jednego określonego odbierającego
     - pomiary są sukcesywnie dodawane do kolejki do wysłania
     - należy pomiary podzielić na do 8 kanałów i wysyłać równolegle - jeden pomiar przez jeden kanał
-    - 
-2. Przesyłanie zbioru plików na inną maszynę
+
+3. Przesyłanie zbioru plików na inną maszynę
     - każdy plik traktujemy jako oddzielny strumień danych do przesłania
-    - wysyłamy równocześnie 8 plików
+    - wysyłamy równocześnie 8 plików -->
 
 <!-- Analiza możliwych sytuacji błędnych i proponowana ich obsługa. -->
 
-# Możliwe sytuacje błędne
+# Możliwe sytuacje błędne <!-- TODO -->
 
 Sytuacje błędne w fazie nawiązywania połączenia:
 - duplikacja pakietu nawiązującego połączenie od wysyłającego
@@ -170,69 +208,238 @@ Testy manualne będziemy wykonywać korzystając z porozumiewających się konte
 
 # Architektura Rozwiązania
 
+### Producent danych
 ```mermaid
 flowchart LR
-    bufor[(Bufor)]
-    Database[(Baza danych)]
-    z[Zarządca]
+    s1[Wątek produkujący dane 1]
+    s2[Wątek produkujący dane 2]
+    s4[Wątek produkujący dane ...]
+    s7[Wątek produkujący dane 7]
+    s8[Wątek produkujący dane 8]
 
-    subgraph Wysyłający
-        w1
-        w2
-        w3
-        w4
-        w5
-        bufor
-        s1
-        s2
-        s3
-        s4
-        s5
-    end
+    w[Nadawca komunikatów]
 
-    subgraph Odbierający
-        subgraph Dynamicznie przydzielane
-            o1
-            o2
-            o3
-            o4
-            o5
-        end
-        Database
-        t
-        z
-    end
-
-    t[Aplikacja docelowa]
-
-    w1[Wątek 1] --> bufor --> s1[Wysyłający 1] <--Uzgodnienie klucza symetrycznego--> o1[Odbierający k + 1] --> Database
-    w2[Wątek 2] --> bufor --> s2[Wysyłający 2] <--Uzgodnienie klucza symetrycznego--> o2[Odbierający k + 2] --> Database
-    w3[Wątek 3] --> bufor --> s3[Wysyłający 3] <--Uzgodnienie klucza symetrycznego--> o3[Odbierający k + 3] --> Database
-    w4[Wątek ...] --> bufor --> s4[Wysyłający ...] <--Uzgodnienie klucza symetrycznego--> o4[Odbierający k + ...] --> Database
-    w5[Wątek n] --> bufor --> s5[Wysyłający 8] <--Uzgodnienie klucza symetrycznego--> o5[Odbierający k + 8] --> Database
-
-    s1 --Szyfrogram--> o1
-    s2 --Szyfrogram--> o2
-    s3 --Szyfrogram--> o3
-    s4 --Szyfrogram--> o4
-    s5 --Szyfrogram--> o5
-
-    s1 <--Nawiązanie połączenia/\n przydzielenie portu--> z
-    s2 <--Nawiązanie połączenia/\n przydzielenie portu--> z
-    s3 <--Nawiązanie połączenia/\n przydzielenie portu--> z
-    s4 <--Nawiązanie połączenia/\n przydzielenie portu--> z
-    s5 <--Nawiązanie połączenia/\n przydzielenie portu--> z
-
-    Database --> t
+    s1 --> w
+    s2 --> w
+    s4 --> w
+    s7 --> w
+    s8 --> w
 ```
 
-Każdy z wątków niezależnie generuje dane, które po wytworzeniu są przechowywane w **buforze**. Następnie dane dzielone są na maksymalnie ośmiu **wysyłających**. Każdy z **wysyłających** rozpoczyna od nawiązania połączenia z **zarządcą**.
+### Konsument danych
+```mermaid
+flowchart LR
+    o[Odbiorca komunikatów]
 
-**Zarządca** przydziela numery portów nowych **odbierających**.
+    z1[Zarządca sesji 1]
+    z2[Zarządca sesji 2]
+    z3[Zarządca sesji ...]
+    z4[Zarządca sesji N-1]
+    z5[Zarządca sesji N]
 
-**Wysyłający** po uzgodnieniu z **odbierającym** klucza symetrycznego rozpoczyna przesył danych w pojedynczych datagramach (każdorazowo czekając na otrzymanie potwierdzenia odbioru przed wysłaniem kolejnego datagramu).
+    d[(Baza danych)]
 
-**Baza danych** zbiera dane odebrane przez **odbiorców** i przekazuje je dalej do **aplikacji**.
+    i[Interfejs aplikacji]
+
+    o <--> z1
+    o <--> z2
+    o <--> z3
+    o <--> z4
+    o <--> z5
+
+    z1 --> d
+    z2 --> d
+    z3 --> d
+    z4 --> d
+    z5 --> d
+
+    d --> i
+```
+
+### Komunikacja
+
+```mermaid
+flowchart LR
+    subgraph Producent Danych 1-N - klient
+        w[Nadawca komunikatów]
+    end
+    
+    subgraph Konsument danych - serwer
+        o[Odbiorca komunikatów]
+        k[...]
+        
+        o --> k
+        k --> o
+    end
+    
+    w --> o
+    o --> w
+```
+
+### Złożenie w całość
+```mermaid
+flowchart LR
+    
+    subgraph Producenci
+        subgraph Producent Danych 1 - klient
+            s1[Wątek produkujący dane 1]
+            s2[Wątek produkujący dane 2]
+            s4[Wątek produkujący dane ...]
+            s7[Wątek produkujący dane 7]
+            s8[Wątek produkujący dane 8]
+
+            w[Nadawca komunikatów]
+
+            s1 --> w
+            s2 --> w
+            s4 --> w
+            s7 --> w
+            s8 --> w
+        end
+
+        subgraph w2[Producent Danych 2 - klient]
+            xd2[...]
+            
+        end
+
+        subgraph w3[Producent Danych ... - klient]
+            xd3[...]
+        end
+
+        subgraph w4[Producent Danych N-1 - klient]
+            xd4[...]
+        end
+
+        subgraph w5[Producent Danych N - klient]
+            xd5[...]
+        end
+    end
+    
+        
+    subgraph serwer[Konsument danych - serwer]
+        
+        o[Odbiorca komunikatów]
+
+        z1[Zarządca sesji 1]
+        z2[Zarządca sesji 2]
+        z3[Zarządca sesji ...]
+        z4[Zarządca sesji N-1]
+        z5[Zarządca sesji N]
+        
+        d[(Baza danych)]
+        
+        i[Interfejs aplikacji]
+        
+        o <--> z1
+        o <--> z2
+        o <--> z3
+        o <--> z4
+        o <--> z5
+        
+        
+        z1 --> d
+        z2 --> d
+        z3 --> d
+        z4 --> d
+        z5 --> d
+        
+        d --> i
+    end
+    w <--> o
+    w2 <--> o
+    w3 <--> o
+    w4 <--> o
+    w5 <--> o
+```
+
+
+**Wątek produkujący dane:**
+- generuje co pewien okres dane niewielkich rozmiarów
+- przekazuje dane do nadawcy komunikatów
+- dane generowane przez wątek są traktowane jako jeden strumień danych
+- może się znaleźć do 8 takich wątków w jednej sesji
+
+**Nadawca komunikatów:**
+- inicjuje sesję z serwerem
+- negocjuje klucz sesyjny z serwerem
+- buforuje otrzymywane dane do osiągnięcia limitu wielkości wysyłanego pakietu - 512 B
+- zapisuje pochodzenie danych z poszczególnych wątków
+- zapisuje czas otrzymania danych ze strumienia
+- szyfruje dane ustalonym kluczem sesyjnym (najpierw dopełniając dane randomowym paddingiem do 512B)
+- działa w trybie prześlij pakiet i czekaj na odpowiedź (z ustawionym timeout)
+    - po czasie bez odpowiedzi - retransmituje ponownie pakiet
+    - gdy kilka razy będzie następowała retransmisja i dalej nie otrzyma odpowiedzi - kończy połączenie
+
+**Odbiorca komunikatów:**
+- odbiera poszczególne komunikaty
+- sprawdza czy dane z nagłówka są poprawne
+- rozpoznaje numer sesji na podstawie nagłówka
+    - w przypadku nieznanego numeru sesji tworzy nowego zarządce sesji
+- przekazuje pakiet do obsługi przez odpowiedniego zarządcę sesji
+- przekazuje komunikaty wygenerowane przez zarządcę sesji do odpowiedniego klienta
+
+**Zarządca sesji:**
+- przechowuje informacje o aktywnej sesji
+- zachowuje informacje o stanie danego połączenia np.
+    - adres IP oraz port klienta
+    - id sesji
+    - fazie sesji (nawiązywanie połączenia, uzgadnianie klucza, przesyłanie danych)
+    - ustalony klucz sesyjny
+    - ilość strumieni danych
+- obsługuje otrzymywane pakiety
+- uzgadnia klucz sesyjny
+- deszyfruje pakiety
+- decyduje czy dany pakiet ma sens w kontekście danej sesji
+- przygotowuje komunikaty (odpowiedzi) do przesłania do klienta
+    - przekazuje je odbiorcy do wysłania
+    - potwierdza wszystkie otrzymane poprawne pakiety
+- rozdziela poszczególne strumienie danych do odpowiednich miejsc w bazie danych
+
+**Baza danych:**
+- przechowuje uszeregowane dane według poszczególnych strumieni danych
+- agreguje wszystkie otrzymywane dane
+
+**Interfejs aplikacji:**
+- może działać na oddzielnym wątku od pozostałych komponentów
+- aplikacja monitorująca
+- wyświetla aktualny stan bazy danych w postaci wykresów
+
+
+## Protocol and Service Data Units <!-- TODO -->
+
+### PDU dla klienta (producenta danych)
+- uzgodnienie klucza symetrycznego:
+    - przykłady
+- żadanie otwarcia sesji z N strumieniami:
+    - przykłady
+- przesyłana paczka danych:
+    - przykłady
+- zamknięcie sesji:
+    - przykłady
+
+### PDU dla serwera (konsumenta danych)
+- uzgodnienie klucza symetrycznego:
+    - przykłady
+- potwierdzenie otwarcia sesji z N strumieniami:
+    - przykłady
+- potwierdzenie odbioru paczki danych:
+    - przykłady
+- zamknięcie sesji:
+    - przykłady
+
+### SDU dla klienta (producenta danych)
+- nazwiąż połączenie
+- uzgodnij klucze symetryczne w ramach bezpiecznego połączenia
+- wyślij paczkę danych
+- odbierz potwierdzenie przyjęcia danych przez konsumenta
+- zamknij sesję komunikacyjną
+
+### SDU dla serwera (konsumenta danych)
+- przydziel numer portu klientowi
+- uzgodnij klucze symetryczne
+- odbierz paczkę danych
+- wyślij potwierdzenie odebrania paczki danych
+- zamknij sesję komunikacyjną
 
 <!-- Ewentualnie API modułów stanowiących główne bloki funkcjonalne.-->
 
@@ -240,44 +447,82 @@ Każdy z wątków niezależnie generuje dane, które po wytworzeniu są przechow
 
 ```py
 import queue
-from typing import Mapping
+from typing import Mapping, Tuple
+from random import randint
 
-class File:
-    file_name: str
+
+class Coordinates:
+    latitude: float
+    longitude: float
+
+
+class Data:
+    data_stream_id: int
+    time: timestamp
     content: bytes
+    coordinates: Coordinates
 
-class Buffer:
-    queue: queue
-    def push(file: File) -> None:
-        pass
-
-    def pop() -> File:
-        pass
 
 class Sender:
-    buffer: Buffer
-    file: File
+    buffer: queue[Data]
     session_key: str
     public_key: str
     private_key: str
     receiver_public_key: str
 
-class Receiver:
-    content: bytes
-    session_key: str
-    public_key: str
-    private_key: str
-    sender_public_key: str
+    def __init__(self, address: Tuple[str, int]) -> None: pass
 
-class Controller:
-    def _assign_receiver() -> Receiver:
-        pass
+    def send(self, content: bytes, stream_id: int) -> None: pass
+
 
 class Database:
     data: Mapping
 
+    def insert(self, data: Data, address: Tuple[str, int]) -> None: pass
+
+
+class Packet:
+    content: bytes
+    # based on final implementation this might be just bytes
+    # with special functions to convert it to more headers and data
+    # or
+    # it might be parsed to/from bytes to headers and data inside a constructor
+
+    def get_session_id(self) -> int: pass
+
+
+class SessionManager:
+    session_id: int
+    session_key: str
+    public_key: str
+    private_key: str
+    sender_public_key: str
+    database: Database
+
+    def handle(self, packet: Packet) -> Packet: pass
+
+
+class Receiver:
+    session_managers: Mapping[int, SessionManager] = {}
+
+    def _handle(self, packet: Packet) -> Packet:
+        session_id = packet.get_session_id()
+        if (session_id not in session_managers):
+            session_id = randint(1, MAX_SESSION_NUMBER)
+            session_managers[session_id].append(SessionManager())
+
+        result = session_managers[session_id].handle(packet)
+
+        if (not result):
+            session_managers.pop(session_id)
+
+        return result
+
+
 class Interface:
-    data_base: Database
+    database: Database
+
+    def _update_view(self) -> None: pass
 ```
 
 <!-- Sposób testowania. -->
@@ -291,7 +536,7 @@ class Interface:
 
 <!-- Podział prac w zespole. -->
 
-# Podział prac
+# Podział prac <!-- TODO -->
 
 - Mateusz Brzozowski:
 	- implementacja wysyłającego (Sender)
@@ -300,8 +545,7 @@ class Interface:
 	- implementacja odbierającego (Receiver)
 	- uzgodnienie klucza sesyjnego
 - Jakub Marcowski:
-	- obsługa bufora z możliwością czytania i pisania przez wiele wątków
-	- implementacja kontrolera przydzielającego odbierających (Controller)
+	- implementacja zarządcy sesji (SessionManager)
 - Aleksandra Sypuła:
 	- generowanie kluczy (2x publiczny, 2x prywatny, 1x symetryczny)
 	- aplikacja lokalna (interfejs)
