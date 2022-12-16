@@ -1,42 +1,3 @@
-<!-- # Mail od Wytrębowicza
-
-- Korzystajcie z jednego portu max kilku z przedziału 1-1023;
-
-- Przykładami protokołów pozwalających na równoległą transmisję strumieni danych w ramach jednego przepływu TCP lub UDP są: XMPP, WebSocket, QUIC. 
-
-- Nie korzystać z nazwy fragment jeśli chodzi o wydzieloną część pliku xD
-- poprawnie korzystać z nazwy serwer iteracyjny i współbieżny
-
-- Zasugerowałem Wam wzorowanie się na TFTP w celu zapewnienia niezawodności. Ku memu zaskoczeniu przyjęliście również model przekazywania pliku, którego koniec rozpoznawany jest niepełną długością datagramu.
-
-Z zaproponowanego tu przypadku użycia wynika, iteracyjny serwer UDP „udźwignie” tę komunikację. Jednak dla każdego sterownika będzie musiał utrzymywać kontekst komunikacji.
-
-Zastosowanie
-- system pomiarowy z centralnym serwerem akwizycji danych i dużą liczbą sterowników z sensorami.
-- Sterownik może mieć od 1 do 8 sensorów.
-- Z każdym sensorem związany jest proces pomiarowy, który co określony interwał (dla danego sensora) przekazuje wartość pomiaru (paczkę danych) do waszego systemu.
-- Wartość ta może mieć długość od 1 do 4 bajtów (albo więcej jeślibyśmy chcieli przekazywać współrzędne GPS).
-- Interwał może być w zakresie od 0.5s do 30 minut.
-- Sterownik stempluje czasem otrzymane pomiary, grupuje je i wysyła datagramem UDP o rozmiarze nie większym  niż 512 bajtów do serwera.
-- Można przyjąć, że sterownik wysyła datagram gdy osiągnął on maksymalny rozmiar albo wcześniej – tak aby paczka danych nie czekała na transport dłużej niż określony parametr, np. 10 min.
-- Zapewne dla celów debugowania i demonstracji, wymieniane tu czasy należałoby skrócić. 
-- Aplikacja akwizycji danych otrzymuje z waszego systemu strumienie paczek (danych pomiarowych) pochodzących od kolejnych sensorów.
-
-Spodziewam się, że w projekcie wstępnym zdefiniowane będą PDUs (Protocol Data Units) oraz SDUs (Service Data Units) dla strony producenta danych (można go nazwać klientem) i konsumenta danych (można go nazwać serwerem).
-Przykłady PDU:
-- żądanie otwarcia sesji z N strumieniami,
-- potwierdzenie otwarcia sesji z N strumieniami,
-- zagregowany pakiet danych,
-- potwierdzenie pakietu danych,
-- żądanie echa,
-- echo.
-
-Przykłady SDU dla producenta:
-- otwórz sesję komunikacyjną (proces lub wątek zarządzający),
-- zamknij sesję komunikacyjną,
-- wyślij paczkę danych (proces lub wątek pomiarowy). -->
-
-
 <!-- Nagłówek – nazwę przedmiotu, nazwę projektu (proszę zaproponować jego nazwę własną), nazwiska autorów, wskazanie lidera, datę sporządzenia. -->
 
 # Programowanie Sieciowe
@@ -57,36 +18,38 @@ Zaprojektuj i zaimplementuj protokół warstwy sesji, umożliwiający równoleg�
 <!-- Przyjęte założenia funkcjonalne i niefunkcjonalne. -->
 
 ## Założenia funkcjonalne:
-- niezawodność <!-- TODO -->
+- niezawodność
     - wszystkie wysłane dane dotrą w poprawnej formie,
-    - jeśli nie zgadza się suma kontrolna serwer prosi o dokonanie retransmisji,
+    - jeśli nie zgadza się suma kontrolna, serwer prosi o dokonanie retransmisji,
     - serwer potwierdza wszystkie przesyłane datagramy,
+        - w przypadku, gdy klient nie otrzyma potwierdzenia retransmituje pakiet co pewien okres do skutku lub do upływu czasu terminacji
     - ograniczamy wielkość datagramów do 512 bajtów, aby uniknąć fragmentacji
 
-- kolejność <!-- TODO -->
+- kolejność
     - poszczególne pomiary są stemplowane czasem podczas wstawiania do nadawcy
+    - na podstawie stempli czasowych baza danych ustawia pakiety w odpowiedniej kolejności
 
-- serwer iteracyjny <!-- TODO -->
+- serwer iteracyjny
     - serwer odbiera pakiety, obsługuje pakiet w ramach sesji, odsyła odpowiednią odpowiedź i wraca do nasłuchiwania na gnieździe
-    - poszczególny strumień danych będzie rozpoznawany poprzez adres wysyłającego, port wysyłającego, adres odbierającego oraz port odbierającego (protokół narzucony z zadania - UDP)
+    - poszczególny klient sesji będzie rozpoznawany poprzez adres oraz port
 
 - bezpieczeństwo
     - w fazie nawiązywania połączenia uzgadniany jest klucz asymetryczny do przesyłu klucza symetrycznego
     - przesyłamy klucz symetryczny chroniony jednorazowym kluczem asymetrycznym
     - dane chronione będą kluczem symetrycznym
 
-- obsługiwane typy datagramów: <!-- TODO -->
-    - READ REQUEST (RRQ) - zawierający nazwę pliku oraz wskazujący, czy przesyłany jest tekst, czy bity
-    - WRITE REQUEST (WRQ)
-    - DATA - zawierający 16-bitowy number bloku i do 512 bajtów danych
-    - ACK - zawierający 16-bitowy numer bloku
-    - ERROR - dla niektórych, wyznaczonych błędów
-
-- kolejne fazy połączenia <!-- TODO -->
-    1. 
+- kolejne fazy połączenia
+    1. Nadawca inicjuje sesję z serwerem
+    2. Wymiana kluczy publicznych
+    3. Uzgodnienie klucza asymetrycznego (do przesłania klucza sesyjnego)
+    4. Przesył klucza symetrycznego (sesyjnego)
+    5. Przesył informacji o podłączającym się kliencie (ilość strumieni danych, ich id)
+    6. Przesył danych zabezpieczonym kanałem z potwierdzaniem kolejnych pakietów:
+        - W przypadku braku otrzymania potwierdzenia odebrania pakietu przez klienta następuje retransmisja - jeżeli po jej kilku próbach wciąż brak odpowiedzi ze strony serwera - następuje koniec transmisji
+    7. Zakończenie sesji
 
 ## Założenia niefunkcjonalne:
-- bezpieczeństwo
+- bezpieczeństwo 
     - dane są szyfrowane
 - dostępność
 	- docelowo użytkownik powinien mieć dostęp do usługi 24/7 (bez przerw)
@@ -95,87 +58,75 @@ Zaprojektuj i zaimplementuj protokół warstwy sesji, umożliwiający równoleg�
 
 <!-- Podstawowe przypadki użycia. -->
 
-# Przypadki użycia <!-- TODO -->
+# Przypadki użycia
 
-1. System pomiarowy:
-    - System składa się z centralnego serwera akwizycji danych oraz wielu sterowników z sensorami.
-    - Każdy sterownik może mieć od jednego do ośmiu sensorów, z których każdy jest związany z procesem pomiaru.
-    - Proces pomiaru przesyła do systemu wartość pomiaru (1 - 4 bajty) co określony interwał (0.5s - 30min) (dla danego sensora).
-    - Sterownik stempluje czasem otrzymane pomiary, grupuje je i wysyła w formie datagramu UDP o rozmiarze nie większym niż 512 bajtów do serwera.
-    - Datagram jest wysyłany, gdy osiągnie maksymalny rozmiar lub wcześniej, aby uniknąć sytuacji, w której paczka danych czekałaby na transport dłużej niż określony parametr (na przykład dziesięć minut).
-    - Aplikacja akwizycji danych otrzymuje strumienie paczek (danych pomiarowych) z systemu pochodzących od kolejnych sensorów.
-    - Przykład - system monitorowania jakości powietrza:
-        - System składa się z centralnego serwera oraz wielu czujników zainstalowanych w różnych lokalizacjach.
-        - Czujniki monitorują poziomy różnych zanieczyszczeń w powietrzu, takich jak dwutlenek węgla, tlenki azotu i pyły zawieszone.
-        - Każdy czujnik przesyła do systemu wartości pomiarowe co określony interwał (np. co 5 minut, ale na potrzeby prezentacji czas ten powinien być krótszy).
-        - Serwer otrzymuje strumień danych pomiarowych z każdego czujnika i przechowuje je w bazie danych.
-
-<!-- 2. Urządzenie wykonujące pomiary
-    - wysyłający działa na urządzeniu agregującym dane z wielu urządzeń pomiarowych
-    - każde urządzenie pomiarowe co pewien okres generuje podobną ilość danych - plik na przykład ok. 200kB
-    - wysyłający przesyła równolegle do 8 takich pomiarów na raz
-    - wysyłający przesyła dane do jednego określonego odbierającego
-    - pomiary są sukcesywnie dodawane do kolejki do wysłania
-    - należy pomiary podzielić na do 8 kanałów i wysyłać równolegle - jeden pomiar przez jeden kanał
-
-3. Przesyłanie zbioru plików na inną maszynę
-    - każdy plik traktujemy jako oddzielny strumień danych do przesłania
-    - wysyłamy równocześnie 8 plików -->
+System pomiarowy:
+- System składa się z centralnego serwera akwizycji danych oraz wielu sterowników z sensorami.
+- Każdy sterownik może mieć od jednego do ośmiu sensorów, z których każdy jest związany z procesem pomiaru.
+- Proces pomiaru przesyła do systemu wartość pomiaru (1 - 4 bajty) co określony interwał (0.5s - 30min) (dla danego sensora).
+- Sterownik stempluje czasem otrzymane pomiary, grupuje je i wysyła w formie datagramu UDP o rozmiarze nie większym niż 512 bajtów do serwera.
+- Datagram jest wysyłany, gdy osiągnie maksymalny rozmiar lub wcześniej, aby uniknąć sytuacji, w której paczka danych czekałaby na transport dłużej niż określony parametr (na przykład dziesięć minut).
+- Aplikacja akwizycji danych otrzymuje strumienie paczek (danych pomiarowych) z systemu pochodzących od kolejnych sensorów.
+- Przykład 1: system monitorowania jakości powietrza:
+    - System składa się z centralnego serwera oraz wielu czujników zainstalowanych w różnych lokalizacjach.
+    - Czujniki monitorują poziomy różnych zanieczyszczeń w powietrzu, takich jak dwutlenek węgla, tlenki azotu i pyły zawieszone.
+    - Każdy czujnik przesyła do systemu wartości pomiarowe co określony interwał (np. co 5 minut, ale na potrzeby prezentacji czas ten będzie krótszy).
+    - Serwer otrzymuje strumień danych pomiarowych z każdego czujnika i przechowuje je w bazie danych.
+- Przykład 2: linia produkcyjna świętych mikołaji z czekolady:
+    - System składa się z centralnego serwera oraz wielu czujników umieszczonych w poszczególnych maszynach.
+    - Czujniki monitorują zawartość poszczególnych parametrów czekolady, takie jak zawartość tłuszczu, kakao, czy temperatura
+    - Każdy czujnik co 30 sekund przesyła do systemu zmierzone parametry
+    - Server agreguje dane i na bierząco wyświetla wartości poszczególnych parametrach na każdej z maszyn
 
 <!-- Analiza możliwych sytuacji błędnych i proponowana ich obsługa. -->
 
-# Możliwe sytuacje błędne <!-- TODO -->
+# Możliwe sytuacje błędne
 
-Sytuacje błędne w fazie nawiązywania połączenia:
-- duplikacja pakietu nawiązującego połączenie od wysyłającego
-    - odbierający odpowiada na każdy pakiet inicjujący połączenie - przydzielenie nowego gniazda 
-    - wysyłający skorzysta jedynie z pierwszego wysłanego gniazda przez odbierającego
-    - drugie gniazdo odbierającego po pewnym czasie zostanie zamknięte przez timeout
-- zgubienie datagramu od odbierającego
-    - retransmisja pakietu (po czasie retry)
-    - zakończenie transmisji (po czasie timeout) i zamknięcie otwartego gniazda
-- niewystarczająca ilość zasobów odbierającego
-    - przesłanie datagramu z kodem błędu
-- datagram zmodyfikowany w czasie przesyłu
-    - przesyła datagram z kodem błędu (incorrectly formed packet)
-- odbiór pakietu oznaczonego jako błąd (inny niż incorrectly formed packet)
-    - terminujemy połączenie
-    - wysyłający w takiej sytuacji będzie próbował nawiązać nowe połączenie i wysłać dane na nowo
-    - pamiętamy cały strumień danych dopóki nie zostanie wysłany
-- odbiór pakietu oznaczonego jako incorrectly formed packet
-    - natychmiastowa retransmisja pakietu
-
-Sytuacje błędne w czasie deszyfrowania datagramu:
+Sytuacje błędne po stronie klienta:
+- duplikacja pakietu w odpowiedzi od serwera
+    - odpowiedzi od serwera numerowane tymi samymi numerami co odpowiadający pakiet od klienta
+    - jeśli klient otrzyma potwierdzenie sprawdza, czy numer potwierdzenia zgadza się z ostatnio wysłanym numerem datagramu
+    - jeśli numery nie zgadzają się ignoruje dane potwierdzenie
+- zgubienie odpowiedzi od serwera
+    - W przypadku braku otrzymania potwierdzenia odebrania pakietu przez klienta następuje retransmisja
+    - jeżeli po jej kilku próbach wciąż brak odpowiedzi ze strony serwera - następuje koniec transmisji
+- zmodyfikowany datagram w czasie przesyłu - nie zgadza sie suma kontrolna
+    - przesłanie datagramu z kodem błędu (incorrectly formed packet)
 - niezgodne nagłówki - np. nie istniejąca operacja
-    - odrzucenie pakietu - odesłanie datagramu z kodem błędu (incorrectly formed packet)
-
-Sytuacje błędne w fazie przesyłu danych:
-- datagram zmodyfikowany w czasie przesyłu
-    - nie zgadza się suma kontrolna
-    - odbierający przesyła datagram z kodem błędu (incorrectly formed packet)
-    - wysyłający na ponownie przesyła datagram
+    - przesłanie datagramu z kodem błędu (incorrectly formed packet)
+- odbiór pakietu oznaczonego jako błąd (inny niż incorrectly formed packet)
+    - koniec transmisji
+    - próba nazwiązania nowego połączenia
+- odbiór pakietu oznaczonego jako incorrectly formed packet
+    - retransmisja ostatniego datagramu
 - fragmentacja datagramu
     - nie powinna wystąpić - ograniczamy się do 512B na datagram
-- duplikacja datagramu
-    - każdy datagram w ramach przesyłu danych zawierać będzie numer kolejny - ignorujemy numery które są różne od oczekiwanych
-    - każdy datagram z potwierdzeniem zawierać będzie numer kolejny - wysyłający ignoruje potwierdzenia zduplikowane
-- zgubienie datagramu w sieci
-    - retransmisja datagramu (z danymi / z potwierdzeniem) w przypadku nie otrzymania datagramu przez pewien okres (retry)
-    - w tym celu pamiętamy ostatni wysłany datagram - aby móc przesłać go ponownie
-    - transmisję kończymy dopiero gdy otrzymany datagram mniejszy niż 512B
-- odbiór pakietu oznaczonego jako błąd (inny niż incorrectly formed packet)
-    - terminujemy połączenie
-    - wysyłający w takiej sytuacji będzie próbował nawiązać nowe połączenie i wysłać dane na nowo
-    - pamiętamy cały strumień danych dopóki nie zostanie wysłany
-- odbiór pakietu oznaczonego jako incorrectly formed packet
-    - natychmiastowa retransmisja pakietu
 - przedwczesne zakończenie połączenia bez odebrania pakietu z błędem
-    - jeśli przez pewien okres (wielokrotność retry - timeout) nie otrzymamy odpowiedzi następuje zakończenie połączenia i uznanie, że wystąpił błąd połączenia
-- skończył się zasób po stronie odbierającego (pamięć)
-    - wysyłamy pakiet z kodem błędu
- 
-Sytuacje błędne w fazie negocjacji klucza symetrycznego:
-- analogicznie do fazy z przesyłem danych
+    - próba retransmisji ostatniego datagramu, a po kilku nieudanych próbach zakończenie transmisji
+
+Sytuacje błędne po stronie serwera:
+- duplikacja pakietu od klienta
+    - klient numeruje kolejne datagramy z danymi (w czasie retransmisji przez klienta ten numer pozostaje taki sam)
+    - serwer pamięta jaki numer datagramu otrzymał ostatnio
+- zgubienie datagramu od klienta
+    - serwer ignoruje taką sytuację (zakładamy, że klient nie otrzyma potwierdzenia i prześle ponownie datagram za jakiś czas)
+- zmodyfikowany datagram w czasie przesyłu - nie zgadza sie suma kontrolna
+    - przesłanie datagramu z kodem błędu (incorrectly formed packet)
+- odbiór pakietu oznaczonego jako błąd (inny niż incorrectly formed packet)
+    - zakończenie transmisji
+- odbiór pakietu oznaczonego jako incorrectly formed packet
+    - retransmisja ostatnio wysłanego datagramu
+- otrzymany pakiet o operacji w innej fazie sesji, niż ta w której teraz się znajduje sesja
+    - przesłanie datagramu z kodem błędu (wrong operation)
+    - zakończenie połączenia
+- niezgodne nagłówki - np. nie istniejąca operacja
+    - przesłanie datagramu z kodem błędu (incorrectly formed packet)
+- niewystarczająca ilość zasobów
+    - przesłanie datagramu z kodem błędu (out of resources)
+- fragmentacja datagramu
+    - nie powinna wystąpić - ograniczamy się do 512B na datagram
+- przedwczesne zakończenie połączenia bez odebrania pakietu z błędem
+    - zachowujemy informacje o otwartej sesji, a gdy znów będzie chciał klient otworzyć nową sesję to w odpowiedzi serwer prześle kod błędu (wrong operation) zakończy stare połączenie i klient zainicjuje połączenie na nowo
  
 <!-- Wybrane środowisko sprzętowo-programowe (systemy operacyjne, biblioteki programistyczne) i narzędziowe (debugowanie, testowanie). -->
 
@@ -191,6 +142,8 @@ Skorzystamy z dostępnych bibliotek:
 - socket - do obsługi gniazd
 - threading - biblioteka wspierająca wątki
 - asyncio - do obsługi czytania dzielonego zasobu przez kilka wątków
+- cryptography - do wygenerowania podpisu cyfrowego dla przesyłanego pakietu danych
+- typing + mypy - do dodawania i sprawdzania podpowiedzi typów
 
 Testy integracyjne oraz jednostkowe postaramy się napisać z wykorzystaniem biblioteki pytest.
 
@@ -365,16 +318,15 @@ flowchart LR
 - buforuje otrzymywane dane do osiągnięcia limitu wielkości wysyłanego pakietu - 512 B
 - zapisuje pochodzenie danych z poszczególnych wątków
 - zapisuje czas otrzymania danych ze strumienia
-- szyfruje dane ustalonym kluczem sesyjnym (najpierw dopełniając dane randomowym paddingiem do 512B)
+- szyfruje dane ustalonym kluczem sesyjnym
 - działa w trybie prześlij pakiet i czekaj na odpowiedź (z ustawionym timeout)
     - po czasie bez odpowiedzi - retransmituje ponownie pakiet
     - gdy kilka razy będzie następowała retransmisja i dalej nie otrzyma odpowiedzi - kończy połączenie
 
 **Odbiorca komunikatów:**
 - odbiera poszczególne komunikaty
-- sprawdza czy dane z nagłówka są poprawne
-- rozpoznaje numer sesji na podstawie nagłówka
-    - w przypadku nieznanego numeru sesji tworzy nowego zarządce sesji
+- rozpoznaje sesję na podstawie adresu IP oraz portu nadawcy
+    - w przypadku nieznanego adresu oraz portu tworzy nowego zarządcę sesji
 - przekazuje pakiet do obsługi przez odpowiedniego zarządcę sesji
 - przekazuje komunikaty wygenerowane przez zarządcę sesji do odpowiedniego klienta
 
@@ -386,6 +338,7 @@ flowchart LR
     - fazie sesji (nawiązywanie połączenia, uzgadnianie klucza, przesyłanie danych)
     - ustalony klucz sesyjny
     - ilość strumieni danych
+    - informacja o strumieniach danych
 - obsługuje otrzymywane pakiety
 - uzgadnia klucz sesyjny
 - deszyfruje pakiety
@@ -405,38 +358,142 @@ flowchart LR
 - wyświetla aktualny stan bazy danych w postaci wykresów
 
 
-## Protocol and Service Data Units <!-- TODO -->
+## Protocol and Service Data Units
+
 
 ### PDU dla klienta (producenta danych)
-- uzgodnienie klucza symetrycznego:
-    - przykłady
-- żadanie otwarcia sesji z N strumieniami:
-    - przykłady
-- przesyłana paczka danych:
-    - przykłady
-- zamknięcie sesji:
-    - przykłady
+<!-- https://en.wikipedia.org/wiki/Diffie%E2%80%93Hellman_key_exchange -->
+- żądanie otwarcia sesji
+
+    | Liczba Bitów |       Przechowują        |
+    |:------------:|:------------------------:|
+    |      3       |           typ            |
+    |      8       | suma kontrolna datagramu |
+
+- uzgodnienie klucza symetrycznego
+
+    | Liczba Bitów |            Przechowują             |
+    |:------------:|:----------------------------------:|
+    |      3       |                typ                 |
+    |      16      |      suma kontrolna datagramu      |
+    |      64      |   klucz publiczny servera ( A )    |
+    |      32      | public (primitive root) base ( g ) |
+    |      32      |    public (prime) modulus ( p )    |
+
+**Uwaga:** całe pakiety od tego momentu są szyfrowane kluczem sesyjnym
+
+- deklaracja N strumieni i informacji o nich
+
+    | Liczba Bitów |       Przechowują        |
+    |:------------:|:------------------------:|
+    |      3       |           typ            |
+    |      16      | suma kontrolna datagramu |
+    |      3       |     liczba strumieni     |
+    |     128      |     id strumienia 1      |
+    |     128      |    id strumienia ...     |
+    |     128      |     id strumienia 8      |
+
+- przesyłana paczka danych
+
+    | Liczba Bitów |           Przechowują           |
+    |:------------:|:-------------------------------:|
+    |      3       |               typ               |
+    |      16      |    suma kontrolna datagramu     |
+    |      16      |  numer przesyłanego datagramu   |
+    |      3       | numer strumienia w ramach sesji |
+    |      32      |            timestamp            |
+    |      32      |              dane               |
+    |     ...      |               ...               |
+    |      3       | numer strumienia w ramach sesji |
+    |      32      |            timestamp            |
+    |      32      |              dane               |
+
+- przesłanie kodu błędu
+
+    | Liczba Bitów |       Przechowują        |
+    |:------------:|:------------------------:|
+    |      3       |           typ            |
+    |      8       | suma kontrolna datagramu |
+
+- zamknięcie sesji
+
+    | Liczba Bitów |       Przechowują        |
+    |:------------:|:------------------------:|
+    |      3       |           typ            |
+    |      8       | suma kontrolna datagramu |
 
 ### PDU dla serwera (konsumenta danych)
+- potwierdzenie otwarcia sesji:
+
+    | Liczba Bitów |       Przechowują        |
+    |:------------:|:------------------------:|
+    |      3       |           typ            |
+    |      8       | suma kontrolna datagramu |
+
 - uzgodnienie klucza symetrycznego:
-    - przykłady
-- potwierdzenie otwarcia sesji z N strumieniami:
-    - przykłady
+
+    | Liczba Bitów |          Przechowują          |
+    |:------------:|:-----------------------------:|
+    |      3       |              typ              |
+    |      16      |   suma kontrolna datagramu    |
+    |      64      | klucz publiczny servera ( B ) |
+
+**Uwaga:** całe pakiety od tego momentu są szyfrowane kluczem sesyjnym
+
+- potwierdzenie odebrania informacji o sesji:
+
+    | Liczba Bitów |       Przechowują        |
+    |:------------:|:------------------------:|
+    |      3       |           typ            |
+    |      8       | suma kontrolna datagramu |
+
 - potwierdzenie odbioru paczki danych:
-    - przykłady
+
+    | Liczba Bitów |        Przechowują         |
+    |:------------:|:--------------------------:|
+    |      3       |            typ             |
+    |      16      |  suma kontrolna datagramu  |
+    |      16      | numer odebranego datagramu |
+
+- przesłanie kodu błędu
+
+    | Liczba Bitów |       Przechowują        |
+    |:------------:|:------------------------:|
+    |      3       |           typ            |
+    |      8       | suma kontrolna datagramu |
+
 - zamknięcie sesji:
-    - przykłady
+
+    | Liczba Bitów |       Przechowują        |
+    |:------------:|:------------------------:|
+    |      3       |           typ            |
+    |      8       | suma kontrolna datagramu |
+
+<!-- <style>
+.dreamy {
+    opacity: 1.0;
+    filter: blur(2px) drop-shadow(0px 0px 15px black);
+}
+</style>
+
+<div class="dreamy">
+<img src="https://spwolazglobienska.pl/wp-content/uploads/2019/11/d-czek_.gif" alt="Trolololo" style="float:right;width:1024px;height:128px;"/>
+</div> -->
+
+---
 
 ### SDU dla klienta (producenta danych)
 - nazwiąż połączenie
-- uzgodnij klucze symetryczne w ramach bezpiecznego połączenia
+- uzgodnij klucz sesyjny (symetryczny) w ramach bezpiecznego połączenia
+- prześlij informacje o strumieniach danych
 - wyślij paczkę danych
 - odbierz potwierdzenie przyjęcia danych przez konsumenta
 - zamknij sesję komunikacyjną
 
 ### SDU dla serwera (konsumenta danych)
-- przydziel numer portu klientowi
-- uzgodnij klucze symetryczne
+- obsłuż nawiązanie sesji
+- uzgodnij klucz sesyjny (symetryczny) w ramach bezpiecznego połączenia
+- odbierz informacje o obsługiwanym kliencie
 - odbierz paczkę danych
 - wyślij potwierdzenie odebrania paczki danych
 - zamknij sesję komunikacyjną
@@ -465,7 +522,6 @@ class Data:
 
 class Sender:
     buffer: queue[Data]
-    session_key: str
     public_key: str
     private_key: str
     receiver_public_key: str
@@ -483,12 +539,11 @@ class Database:
 
 class Packet:
     content: bytes
-    # based on final implementation this might be just bytes
-    # with special functions to convert it to more headers and data
-    # or
-    # it might be parsed to/from bytes to headers and data inside a constructor
-
-    def get_session_id(self) -> int: pass
+    # w zależności od ostatecznej implementacji ta klasa może przechowywać:
+    # - nie przetworząną odpowiedź 
+    #     lub 
+    # - w konstruktorze możemy parsować datagram
+    # i przechowywać już przetworzone nagłówki oraz dane
 
 
 class SessionManager:
@@ -506,17 +561,10 @@ class Receiver:
     session_managers: Mapping[int, SessionManager] = {}
 
     def _handle(self, packet: Packet) -> Packet:
-        session_id = packet.get_session_id()
-        if (session_id not in session_managers):
-            session_id = randint(1, MAX_SESSION_NUMBER)
-            session_managers[session_id].append(SessionManager())
-
-        result = session_managers[session_id].handle(packet)
-
-        if (not result):
-            session_managers.pop(session_id)
-
-        return result
+        # na podstawie adresu IP oraz portu przekaż datagram do odpowiedniego zarządcy seji
+        # jeśli nie istnieje sesja rozpoznawana przez 
+        # dany adres oraz port stwórz nowego zarządcę sesji i przekaż jemu dany datagram
+        # w odpowiedni prześlij do nadawcy datagram przygotowany przez zażądcę sesji
 
 
 class Interface:
@@ -536,7 +584,7 @@ class Interface:
 
 <!-- Podział prac w zespole. -->
 
-# Podział prac <!-- TODO -->
+# Podział prac
 
 - Mateusz Brzozowski:
 	- implementacja wysyłającego (Sender)
@@ -548,7 +596,7 @@ class Interface:
 	- implementacja zarządcy sesji (SessionManager)
 - Aleksandra Sypuła:
 	- generowanie kluczy (2x publiczny, 2x prywatny, 1x symetryczny)
-	- aplikacja lokalna (interfejs)
+	- aplikacja lokalna (interfejs, baza danych)
 
 <!-- Przewidywane funkcje do zademonstrowania w ramach odbioru częściowego. -->
 
@@ -556,3 +604,4 @@ class Interface:
 - bezstratny przesył danych
 - równoległy przesył danych
 - na etap odbioru częściowego bez zapewnienia bezpieczeństwa
+<!-- - <img src="https://upload.wikimedia.org/wikipedia/en/9/9a/Trollface_non-free.png" alt="Trolololo" width="32"/> -->
