@@ -24,9 +24,9 @@ def get_random_string(length: int) -> str:
 
 def parse_arguments(args: List[str]) -> Tuple[str, int]:
     if len(args) < 3:
-        print('No host or port defined, using localhost at 8000 as default')
+        print('No host or port defined, using localhost at 8080 as default')
         host = 'localhost'
-        port = 8000
+        port = 8080
     else:
         host = sys.argv[1]
         port = int(sys.argv[2])
@@ -56,6 +56,16 @@ def send_text(s: socket.socket, text: str) -> None:
         print(f'Exception while encoding text to bytes: {exception}')
 
 
+def receive(s: socket.socket) -> None:
+    try:
+        data = s.recv(512)
+        print(data.decode('ascii'))
+    except socket.error as exception:
+        print(f'Exception while receiving data: {exception}')
+    except UnicodeDecodeError as exception:
+        print(f'Exception while decoding text to bytes: {exception}')
+
+
 def prepare_socket_and_start_sending_data(host: str, port: int) -> None:
     data_grams: List[str] = [
         get_random_string(DATA_GRAM_LENGTH)
@@ -67,6 +77,7 @@ def prepare_socket_and_start_sending_data(host: str, port: int) -> None:
 
         for text in data_grams:
             send_text(s, text)
+            # receive(s)
 
 
 def main(args: List[str]) -> None:
