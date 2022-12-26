@@ -59,7 +59,9 @@ class Receiver:
     def handle(self, address: Tuple[str, int], datagram: Packet) -> Optional[Packet]:
         session_key = f'{address[0]}:{address[1]}'
         if session_key not in self._session_managers.keys():
-            self._session_managers[session_key] = SessionManager()
+            self._session_managers[session_key] = SessionManager(
+                address[0], address[1]
+            )
 
         manager = self._session_managers[session_key]
 
