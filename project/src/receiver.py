@@ -2,13 +2,25 @@ from __future__ import annotations
 
 import socket
 import sys
-from typing import Dict, List, Optional, Tuple
+from types import TracebackType
+from typing import Dict, List, Optional, Tuple, Type
 
 from packet import Packet
 from session import SessionManager
 
 
 class Receiver:
+    """
+    Odbiorca komunikatów:
+    - odbiera poszczególne komunikaty
+    - sprawdza czy dane z nagłówka są poprawne
+    - rozpoznaje numer sesji na podstawie nagłówka
+        - w przypadku nieznanego numeru sesji tworzy nowego zarządce sesji
+    - przekazuje pakiet do obsługi przez odpowiedniego zarządcę sesji
+    - przekazuje komunikaty wygenerowane przez zarządcę sesji
+      do odpowiedniego klienta
+    """
+
     BUFSIZE = 512
     _session_managers: Dict[str, SessionManager] = {}
     _sock: socket.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -17,7 +29,12 @@ class Receiver:
     def __enter__(self) -> Receiver:
         return self
 
-    def __exit__(self) -> None:
+    def __exit__(
+        self,
+        exception_type: Optional[Type[BaseException]],
+        exception_value: Optional[BaseException],
+        traceback: Optional[TracebackType],
+    ) -> None:
         self._sock.__exit__()
 
     def switch(self) -> None:
@@ -75,6 +92,8 @@ class Receiver:
         except Exception as exception:
             print(exception)
 
+        return None
+
     def send_datagram(
         self, address: Tuple[str, int], datagram: Packet
     ) -> None:
@@ -112,6 +131,7 @@ def main(args: List[str]) -> None:
             r.listen(host, port)
         except socket.error as exception:
             print(f"Caught exception: {exception}")
+            return
 
 
 if __name__ == "__main__":
