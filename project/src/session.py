@@ -1,5 +1,6 @@
-from packet import Packet
 from typing import Optional
+
+from packet import Packet
 
 
 class SessionManager:

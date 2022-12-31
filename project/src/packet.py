@@ -1,4 +1,3 @@
-
 class Packet:
     _content: bytes
     # based on final implementation this might be just bytes
