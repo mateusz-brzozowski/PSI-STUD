@@ -1,0 +1,34 @@
+from typing import Mapping, Tuple
+from data import Data
+import datetime
+
+class DataEntry:
+    time: datetime
+    value: float
+
+    def __init__(self, time, value):
+        self.time = time
+        self.value = value
+
+class Database:
+    """
+    Baza danych:
+    - przechowuje uszeregowane dane według poszczególnych strumieni danych
+    - agreguje wszystkie otrzymywane dane
+    """
+    data: Mapping
+
+    def __init__(self) -> None:
+        self.data = {}
+
+    def insert(self, data: Data, address: Tuple[str, int]) -> None: 
+        key = address_id(data.data_stream_id, address[0], address[1])
+        new_entry = DataEntry(data.time, data.content)
+        if key not in data.keys():
+            self.data[key] = [new_entry]
+        else:
+            self.data[key].append(new_entry)
+
+
+def address_id(stream_id: int, address: str, port: int) -> str:
+    return f"{address}:{port}:{stream_id}"
