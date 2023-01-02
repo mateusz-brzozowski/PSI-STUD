@@ -30,11 +30,11 @@ class Sender:
 
     buffer: Queue[Data]
     _session_key: int
-    _public_key: int  # A
-    _private_key: int  # a
-    _receiver_public_key: int  # B
-    _prime_number: int  # p
-    _primitive_root: int  # g
+    _public_key: int            # A
+    _private_key: int           # a
+    _receiver_public_key: int   # B
+    _prime_number: int          # p
+    _primitive_root: int        # g
     _sock: socket.socket
     _type: int
 
