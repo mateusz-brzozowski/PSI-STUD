@@ -1,4 +1,5 @@
-from typing import Optional
+import sys
+from typing import List, Optional
 
 from packet import Packet
 
@@ -37,3 +38,11 @@ class SessionManager:
 
     def handle(self, packet: Packet) -> Optional[Packet]:
         return packet
+
+
+def main(args: List[str]) -> None:
+    pass
+
+
+if __name__ == "__main__":
+    main(sys.argv)
