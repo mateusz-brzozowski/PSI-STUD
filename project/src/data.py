@@ -1,10 +1,15 @@
 from datetime import datetime
 
-from coordinates import Coordinates
-
 
 class Data:
     data_stream_id: int
     time: datetime
     content: bytes
-    coordinates: Coordinates
+
+    def __init__(self,
+                 data_stream_id: int,
+                 time: datetime,
+                 content: bytes) -> None:
+        self.data_stream_id = data_stream_id
+        self.time = time
+        self.content = content
