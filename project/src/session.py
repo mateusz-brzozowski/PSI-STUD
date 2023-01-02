@@ -34,9 +34,10 @@ class SessionManager:
     sender_public_key: str
     database: Database
 
-    def __init__(self, host: str, port: int) -> None:
+    def __init__(self, host: str, port: int, database: Database) -> None:
         self.host = host
         self.port = port
+        self.database = database
 
     def handle(self, packet: Packet) -> Optional[Packet]:
         packet_type = packet.content()[:3]

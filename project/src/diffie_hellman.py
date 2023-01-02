@@ -3,7 +3,7 @@ from typing import List, Tuple
 
 
 def get_data() -> Tuple[int, int, int, int]:
-    prime_number = get_random_prime_number(1000, 10000)
+    prime_number = get_random_prime_number(100, 1000)
     primitive_root = get_primitive_root(prime_number)
     private_key = get_random_number(100, 1000)
     public_key = (primitive_root**private_key) % prime_number

@@ -7,6 +7,7 @@ from typing import Dict, List, Optional, Tuple, Type
 
 from packet import Packet
 from session import SessionManager
+from database import Database
 
 
 class Receiver:
@@ -25,6 +26,10 @@ class Receiver:
     _session_managers: Dict[str, SessionManager] = {}
     _sock: socket.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     _work: bool = True
+    _database: Database
+
+    def __init__(self, database: Database) -> None:
+        self._database = database
 
     def __enter__(self) -> Receiver:
         return self
@@ -82,7 +87,7 @@ class Receiver:
         session_key = f"{address[0]}:{address[1]}"
         if session_key not in self._session_managers.keys():
             self._session_managers[session_key] = SessionManager(
-                address[0], address[1]
+                address[0], address[1], self._database
             )
 
         manager = self._session_managers[session_key]
@@ -126,7 +131,9 @@ def main(args: List[str]) -> None:
         print(f"Error while parsing arguments: {exception}")
         return
 
-    with Receiver() as r:
+    database = Database()
+
+    with Receiver(database) as r:
         try:
             r.listen(host, port)
         except socket.error as exception:
