@@ -36,6 +36,9 @@ class Database:
         else:
             self.data[key].append(new_entry)
 
+        print(f"New data from {data.time} received from {key}.")
+        print(f"Data: {data.content}")
+
 
 def address_id(stream_id: int, address: str, port: int) -> str:
     return f"{address}:{port}:{stream_id}"
