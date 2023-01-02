@@ -79,7 +79,7 @@ class Sender:
 
     def send(self, datagram: Packet) -> None:
         try:
-            self._sock.send(datagram)
+            self._sock.send(datagram)  # Packet type is incompatible right now
         except socket.error as exception:
             print(f"Exception while sending data: {exception}")
         except UnicodeEncodeError as exception:
@@ -93,10 +93,12 @@ class Sender:
             + self._prime_number % 2**16
         )
         print(
-            f"{self._type}:{control_sum}:{self._public_key}:{self._primitive_root}:{self._prime_number}"
+            f"{self._type}:{control_sum}:{self._public_key}:"
+            f"{self._primitive_root}:{self._prime_number}"
         )
         print(
-            f"{self._type:03b}{control_sum:016b}{self._public_key:064b}{self._primitive_root:032b}{self._prime_number:032b}"
+            f"{self._type:03b}{control_sum:016b}{self._public_key:064b}"
+            f"{self._primitive_root:032b}{self._prime_number:032b}"
         )
 
     def send_declaration(self, content: bytes, stream_id: int) -> None:
@@ -134,7 +136,7 @@ def main(args: List[str]) -> None:
 
     with Sender((host, port)) as s:
         try:
-            s.send()
+            s.send()  # no argument
         except socket.error as exception:
             print(f"Caught exception: {exception}")
 
