@@ -39,6 +39,10 @@ class Database:
         print(f"New data from {data.time} received from {key}.")
         print(f"Data: {data.content}")
 
+    def clients_address(self) -> list:
+        clients_addr = set([':'.join(x.split(':')[:-1]) for x in self.data.keys()])
+        return list(clients_addr)
+
 
 def address_id(stream_id: int, address: str, port: int) -> str:
     return f"{address}:{port}:{stream_id}"
