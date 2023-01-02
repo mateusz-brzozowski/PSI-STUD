@@ -1,6 +1,8 @@
-from typing import Mapping, Tuple
+from datetime import datetime
+from typing import Dict, Tuple
+
 from data import Data
-import datetime
+
 
 class DataEntry:
     time: datetime
@@ -10,21 +12,23 @@ class DataEntry:
         self.time = time
         self.value = value
 
+
 class Database:
     """
     Baza danych:
     - przechowuje uszeregowane dane według poszczególnych strumieni danych
     - agreguje wszystkie otrzymywane dane
     """
-    data: Mapping
+
+    data: Dict  # Mapping
 
     def __init__(self) -> None:
         self.data = {}
 
-    def insert(self, data: Data, address: Tuple[str, int]) -> None: 
+    def insert(self, data: Data, address: Tuple[str, int]) -> None:
         key = address_id(data.data_stream_id, address[0], address[1])
         new_entry = DataEntry(data.time, data.content)
-        if key not in data.keys():
+        if key not in self.data.keys():
             self.data[key] = [new_entry]
         else:
             self.data[key].append(new_entry)
