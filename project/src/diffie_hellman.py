@@ -1,8 +1,8 @@
 import random
-from typing import List
+from typing import List, Tuple
 
 
-def get_data():
+def get_data() -> Tuple[int, int, int, int]:
     prime_number = get_random_prime_number(1000, 10000)
     primitive_root = get_primitive_root(prime_number)
     private_key = get_random_number(100, 1000)

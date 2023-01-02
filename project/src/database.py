@@ -8,7 +8,7 @@ class DataEntry:
     time: datetime
     value: float
 
-    def __init__(self, time, value):
+    def __init__(self, time: datetime, value: float) -> None:
         self.time = time
         self.value = value
 
@@ -27,7 +27,10 @@ class Database:
 
     def insert(self, data: Data, address: Tuple[str, int]) -> None:
         key = address_id(data.data_stream_id, address[0], address[1])
+
+        # data.content = bytes (as of now), not float
         new_entry = DataEntry(data.time, data.content)
+
         if key not in self.data.keys():
             self.data[key] = [new_entry]
         else:
