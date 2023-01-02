@@ -1,4 +1,3 @@
-import random
 from datetime import datetime, timedelta
 from time import sleep
 
@@ -11,12 +10,6 @@ from matplotlib.animation import FuncAnimation  # type: ignore
 
 SIZE = 10
 
-x0 = [datetime.now() + timedelta(minutes=x) for x in range(40)]
-y0 = [random.randint(0, 10) for _ in range(40)]
-x1 = [datetime.now() + timedelta(minutes=x) for x in range(40)]
-y1 = [random.randint(0, 10) for _ in range(40)]
-
-
 class Interface:
     """
     Interfejs aplikacji:
@@ -26,45 +19,35 @@ class Interface:
     """
 
     database: Database
+    clients: list
 
-    def __init__(self, database, streams):
+    def __init__(self, database, streams=8):
         self.database = database
-        self.fig, self.axis = plt.subplots(streams)
-        for i in range(streams):
-            self.axis[i].set_title(f"Data source: {i}")
-        (
-            self.xdata0,
-            self.ydata0,
-            self.xdata1,
-            self.ydata1,
-            self.xdata2,
-            self.ydata2,
-            self.xdata3,
-            self.ydata3,
-        ) = ([], [], [], [], [], [], [], [])
-        (
-            self.xdata4,
-            self.ydata4,
-            self.xdata5,
-            self.ydata5,
-            self.xdata6,
-            self.ydata6,
-            self.xdata7,
-            self.ydata7,
-        ) = ([], [], [], [], [], [], [], [])
+        self.streams = streams
+        self.init_dashboard()
 
     def animate(self, i):
-        self.xdata0.append(x0[i])
-        self.ydata0.append(y0[i])
-        self.xdata1.append(x1[i])
-        self.ydata1.append(y1[i])
-        self.axis[0].clear()
-        self.axis[1].clear()
-        self.axis[0].plot(self.xdata0[-SIZE:], self.ydata0[-SIZE:], 'r')
-        self.axis[1].plot(self.xdata1[-SIZE:], self.ydata1[-SIZE:], 'b')
+        i = 0
+        for client in self.clients:
+            for stream in self.streams:
+                xdata, ydata = [], []
+                #TODO: what if missing stream?
+                data = self.database[f"{client}:{stream}"]
+                for entry in data[-SIZE:]:
+                    xdata.append(entry.time)
+                    ydata.append(entry.data)
+                    self.axis[i].clear()
+                    self.axis[i].plot(xdata, ydata, 'o', label=f"Stream {stream}")
+            i = i+1
 
         sleep(1)
         # return
+
+    def init_dashboard(self):
+        self.clients = self.database.clients_address()
+        self.fig, self.axis = plt.subplots(self.clients)
+        for i in range(self.clients):
+            self.axis[i].set_title(f"Data source: {i}")
 
     def show(self):
         ani = FuncAnimation(
@@ -87,9 +70,8 @@ def main():
     # db = Database()
     # data1 = Data()
     # db.insert()
-    print(x0)
-    sth = Interface("db_placeholder", 2)
-    sth.show()
+    interface = Interface("db_placeholder", 4)
+    interface.show()
 
 
 if __name__ == "__main__":
