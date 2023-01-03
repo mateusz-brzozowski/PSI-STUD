@@ -1,0 +1,33 @@
+version: '3.8'
+
+networks:
+  default:
+    name: z43_network
+    external: true
+
+services:
+
+  z43_receiver:
+    container_name: z43_receiver
+    image: python:3
+    volumes:
+      - ./src/:/home/project/
+    command: python -u /home/project/receiver.py
+
+  z43_sender_1:
+    container_name: z43_sender_1
+    image: python:3
+    volumes:
+      - ./src/:/home/project/
+    command: python -u /home/project/sender.py z43_receiver 8080
+    depends_on:
+      - z43_receiver
+
+  z43_sender_2:
+    container_name: z43_sender_2
+    image: python:3
+    volumes:
+      - ./src/:/home/project/
+    command: python -u /home/project/sender.py z43_receiver 8080
+    depends_on:
+      - z43_receiver
