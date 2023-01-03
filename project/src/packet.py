@@ -25,10 +25,11 @@ packet_type_client = {
 }
 
 packet_type_server = {
-    "initial": b"000",
-    "session_data": b"001",
-    "acknowledge": b"010",
-    "receive": b"011",
-    "error": b"100",
-    "close": b"101"
+    "initial": "000",
+    "session_data": "001",
+    "acknowledge": "010",
+    "receive": "011",
+    "terminal": "100",
+    "close": "101",
+    "malformed": "110",
 }

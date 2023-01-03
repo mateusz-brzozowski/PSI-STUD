@@ -45,18 +45,19 @@ class SessionManager:
 
     def handle(self, packet: Packet) -> Packet:
         packet_type = packet.content()[:3]
-        if packet_type == packet_type_client["initial"]:
+        print(f"Packet type: {packet_type}")
+        if packet_type == packet_type_client["initial"].encode():
             return self.handle_init()
-        elif packet_type == packet_type_client["session_data"]:
+        elif packet_type == packet_type_client["session_data"].encode():
             return self.handle_session_data(packet)
-        elif packet_type == packet_type_client["declaration"]:
+        elif packet_type == packet_type_client["declaration"].encode():
             return self.handle_declaration(packet)
-        elif packet_type == packet_type_client["send"]:
+        elif packet_type == packet_type_client["send"].encode():
             return self.handle_send(packet)
-        elif packet_type == packet_type_client["close"]:
+        elif packet_type == packet_type_client["close"].encode():
             return self.handle_close()
         else:
-            return Packet(packet_type_server["error"])
+            return self.handle_error()
 
     def handle_init(self) -> Packet:
         """
@@ -65,9 +66,9 @@ class SessionManager:
         """
         if self.state != session_manager_states["INIT"]:
             self.state = session_manager_states["ERROR"]
-            return Packet(packet_type_server["error"])
+            return self.handle_error()
         self.state = session_manager_states["SYMMETRIC_KEY_NEGOTIATION"]
-        return Packet(packet_type_server["initial"])
+        return Packet(packet_type_server["initial"].encode())
 
     def handle_session_data(self, packet: Packet) -> Packet:
         """
@@ -76,29 +77,29 @@ class SessionManager:
         """
         if self.state != session_manager_states["SYMMETRIC_KEY_NEGOTIATION"]:
             self.state = session_manager_states["ERROR"]
-            return Packet(packet_type_server["error"])
+            return self.handle_error()
         server_public_key_A = packet.content()[3:67]
         public_primitive_root_base_g = packet.content()[67:99]
         public_prime_modulus_p = packet.content()[99:131]
         server_public_key_B = bytes(12345)  # TODO: wygenerować klucz publiczny
         self.state = session_manager_states["SESSION_CONFIRMATION"]
-        return Packet(packet_type_server["session_data"] + server_public_key_B)
+        return Packet(packet_type_server["session_data"].encode() + server_public_key_B)
 
     def handle_declaration(self, packet: Packet) -> Packet:
         """
         Metoda pomocznicza służąca
         potwierdzeniu odebrania informacji o sesji
         """
-        if self.state != session_manager_states["SESSION_CONFIRMATION"]:
+        if self.state != session_manager_states["SYMMETRIC_KEY_NEGOTIATION"]:  # TODO: change to SESSION_CONFIRMATION
             self.state = session_manager_states["ERROR"]
-            return Packet(packet_type_server["error"])
+            return self.handle_error()
         stream_count = packet.content()[3:6]
         self.stream_ids = [
-            packet.content()[i : i + 128]
+            packet.content()[i: i + 128]
             for i in range(6, 6 + int(stream_count) * 128, 128)
         ]
         self.state = session_manager_states["DATA_TRANSFER"]
-        return Packet(packet_type_server["acknowledge"])
+        return Packet(packet_type_server["acknowledge"].encode())
 
     def handle_send(self, packet: Packet) -> Packet:
         """
@@ -107,12 +108,12 @@ class SessionManager:
         """
         if self.state != session_manager_states["DATA_TRANSFER"]:
             self.state = session_manager_states["ERROR"]
-            return Packet(packet_type_server["error"])
+            return self.handle_error()
         datagram_num = packet.content()[3:19]
         data = packet.content()[19:]
         data_entry_len = 67  # 3 + 32 + 32
         data_entries = [
-            data[i : i + data_entry_len]
+            data[i: i + data_entry_len]
             for i in range(0, len(data), data_entry_len)
         ]
         for data_entry in data_entries:
@@ -123,8 +124,8 @@ class SessionManager:
                 int(stream_id), bytes_to_datetime(timestamp), data
             )
             self.database.insert(new_data_entry, (self.host, self.port))
-        self.state = session_manager_states["SESSION_CLOSING"]
-        return Packet(packet_type_server["receive"] + datagram_num)
+        # self.state = session_manager_states["SESSION_CLOSING"]
+        return Packet(packet_type_server["receive"].encode() + datagram_num)
 
     def handle_close(self) -> Packet:
         """
@@ -133,9 +134,17 @@ class SessionManager:
         """
         if self.state != session_manager_states["SESSION_CLOSING"]:
             self.state = session_manager_states["ERROR"]
-            return Packet(packet_type_server["error"])
+            return self.handle_error()
         self.state = session_manager_states["INIT"]
-        return Packet(packet_type_server["close"])
+        return Packet(packet_type_server["close"].encode())
+
+    def handle_error(self) -> Packet:
+        """
+        Metoda pomocnicza służąca
+        wysyłaniu kodu błędu
+        """
+        self.state = session_manager_states["INIT"]
+        return Packet(packet_type_server["terminal"].encode())
 
 
 session_manager_states = {
