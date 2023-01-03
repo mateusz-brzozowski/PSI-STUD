@@ -11,9 +11,9 @@ import string
 import socket
 import diffie_hellman
 import sys
-from utility import string_to_binary
+from utility import string_to_binary, pack, unpack
 
-from data import Data
+from data import SenderData
 
 
 class Sender:
@@ -33,7 +33,7 @@ class Sender:
           nie otrzyma odpowiedzi - kończy połączenie
     """
 
-    send_buffer: Queue[Data]
+    send_buffer: Queue[SenderData]
     semaphore: Semaphore
     _session_key: int
     _public_key: int            # A
@@ -45,7 +45,7 @@ class Sender:
     _send_datagram_number: int
     _work: bool
     _previous_datagram: Packet
-    DATA_SIZE = 67
+    DATA_SIZE = 9
     MAX_DATA_SIZE = 512
     threads = {
         0: "Miernik CO2",
@@ -100,7 +100,7 @@ class Sender:
 
     def work(self) -> None:
         while self._work:
-            if self.buffer_length() + self.DATA_SIZE >= self.MAX_DATA_SIZE:
+            if 3 + self.buffer_length() + self.DATA_SIZE >= self.MAX_DATA_SIZE:
                 self.send_data()
                 self.handle_receive()
 
@@ -126,7 +126,7 @@ class Sender:
         try:    # TODO: jeśli otrzymam error inny niż malformed data zwracam true
             data = self._sock.recv(512)
             print(f"message received: {data}")
-            if self._previous_datagram.content()[:3] == data[:3]:
+            if self._previous_datagram.content()[:1] == data[:1]:
                 return True
             # print(data.decode('ascii'))
             # TODO: czyścimy buffer ale tylko w odpowiednim przypadku
@@ -147,25 +147,26 @@ class Sender:
         self.send(Packet(message.encode()))
 
     def send_declaration(self) -> None:
-        message = packet_type_client["declaration"] + \
-            f"{len(self.threads):03b}"
+        message = packet_type_client["declaration"] + str(len(self.threads))
         for thread in self.threads.values():
-            message += f"{string_to_binary(thread).zfill(128)}"
+            message += thread.ljust(16)
         self.send(Packet(message.encode()))
         if self.handle_receive():
             self._work = True
 
     def send_data(self) -> None:
-        message = packet_type_client["send"] + \
-            f"{self._send_datagram_number:016b}"
+        message = packet_type_client["send"].encode() + \
+            pack(self._send_datagram_number, 2)
         while not self.send_buffer.empty():
             data = self.send_buffer.get()
-            # message += f"{data.data_stream_id:03b}{int(data.time.timestamp()):032b}{string_to_binary(data.content).zfill(32)}"
-            message += f"{data.data_stream_id:03b}{int(data.time.timestamp()):032b}{data.content:032b}"
-        self.send(Packet(message.encode()))
+            message += pack(data.data_stream_id, 1)
+            message += pack(int(data.time.timestamp()), 4)
+            message += data.content
+
+        self.send(Packet(message))
         self._send_datagram_number += 1
 
-    def save_data_to_buffer(self, data: Data) -> None:
+    def save_data_to_buffer(self, data: SenderData) -> None:
         self.semaphore.acquire()
         self.send_buffer.put(data)
         self.semaphore.release()
@@ -181,9 +182,9 @@ def generate_data(length: int) -> str:
 
 def thread_generator(id, sender):
     while True:
-        sender.save_data_to_buffer(
-            Data(id, datetime.now(), random.randint(100, 40000)))
-        time.sleep(random.randint(1, 20))
+        sender.save_data_to_buffer(SenderData(
+            id, datetime.now(), pack(random.randint(100, 1000), 4)))
+        time.sleep(random.randint(1, 10) / 10)
 
 
 def parse_arguments(args: List[str]) -> Tuple[str, int, bool]:

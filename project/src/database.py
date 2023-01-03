@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import Dict, Tuple
+from utility import unpack
 
 from data import Data
 
@@ -28,7 +29,7 @@ class Database:
     def insert(self, data: Data, address: Tuple[str, int]) -> None:
         key = address_id(data.data_stream_id, address[0], address[1])
 
-        content_as_float = float(data.content.decode())
+        content_as_float = float(unpack(data.content))
         new_entry = DataEntry(data.time, content_as_float)
 
         if key not in self.data.keys():
@@ -37,10 +38,11 @@ class Database:
             self.data[key].append(new_entry)
 
         print(f"New data from {data.time} received from {key}.")
-        print(f"Data: {data.content}")
+        print(f"Data: {content_as_float}")
 
     def clients_address(self) -> list:
-        clients_addr = set([':'.join(x.split(':')[:-1]) for x in self.data.keys()])
+        clients_addr = set([':'.join(x.split(':')[:-1])
+                           for x in self.data.keys()])
         return list(clients_addr)
 
 

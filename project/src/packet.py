@@ -16,20 +16,20 @@ class Packet:
 
 
 packet_type_client = {
-    "initial": "000",
-    "session_data": "001",
-    "declaration": "010",
-    "send": "011",
-    "error": "100",
-    "close": "101"
+    "initial": "1",
+    "session_data": "2",
+    "declaration": "3",
+    "send": "4",
+    "error": "5",
+    "close": "6"
 }
 
 packet_type_server = {
-    "initial": "000",
-    "session_data": "001",
-    "acknowledge": "010",
-    "receive": "011",
-    "terminal": "100",
-    "close": "101",
-    "malformed": "110",
+    "initial": "1",
+    "session_data": "2",
+    "acknowledge": "3",
+    "receive": "4",
+    "terminal": "5",
+    "close": "6",
+    "malformed": "7",
 }

@@ -4,7 +4,8 @@ from typing import List
 from data import Data
 from database import Database
 from packet import Packet, packet_type_client, packet_type_server
-from utility import bytes_to_datetime
+from utility import bytes_to_datetime, unpack
+from datetime import datetime
 
 
 class SessionManager:
@@ -44,7 +45,7 @@ class SessionManager:
         self.state = session_manager_states["INIT"]
 
     def handle(self, packet: Packet) -> Packet:
-        packet_type = packet.content()[:3]
+        packet_type = packet.content()[:1]
         print(f"Packet type: {packet_type}")
         if packet_type == packet_type_client["initial"].encode():
             return self.handle_init()
@@ -93,10 +94,10 @@ class SessionManager:
         if self.state != session_manager_states["SYMMETRIC_KEY_NEGOTIATION"]:  # TODO: change to SESSION_CONFIRMATION
             self.state = session_manager_states["ERROR"]
             return self.handle_error()
-        stream_count = packet.content()[3:6]
+        stream_count = packet.content().decode()[1]
         self.stream_ids = [
-            str(packet.content()[i: i + 128].decode())
-            for i in range(6, 6 + int(stream_count) * 128, 128)
+            str(packet.content()[i: i + 16].decode()).strip()
+            for i in range(2, 2 + int(stream_count) * 16, 16)
         ]
         self.state = session_manager_states["DATA_TRANSFER"]
         return Packet(packet_type_server["acknowledge"].encode())
@@ -109,19 +110,20 @@ class SessionManager:
         if self.state != session_manager_states["DATA_TRANSFER"]:
             self.state = session_manager_states["ERROR"]
             return self.handle_error()
-        datagram_num = packet.content()[3:19]
-        data = packet.content()[19:]
-        data_entry_len = 67  # 3 + 32 + 32
+        datagram_num = packet.content()[1:3]
+        data = packet.content()[3:]
+        data_entry_len = 9  # 1 + 4 + 4
         data_entries = [
             data[i: i + data_entry_len]
             for i in range(0, len(data), data_entry_len)
         ]
         for data_entry in data_entries:
-            stream_id = int(data_entry[:3].decode())
-            timestamp = data_entry[3:35]
-            data = data_entry[35:]
+            stream_id = data_entry[0]
+            timestamp = unpack(data_entry[1:5])
+            data = data_entry[5:]
             new_data_entry = Data(
-                self.stream_ids[stream_id], bytes_to_datetime(timestamp), data
+                self.stream_ids[stream_id], datetime.fromtimestamp(
+                    timestamp), data
             )
             self.database.insert(new_data_entry, (self.host, self.port))
         # self.state = session_manager_states["SESSION_CLOSING"]

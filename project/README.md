@@ -49,7 +49,7 @@ Zaprojektuj i zaimplementuj protokół warstwy sesji, umożliwiający równoleg�
     7. Zakończenie sesji
 
 ## Założenia niefunkcjonalne:
-- bezpieczeństwo 
+- bezpieczeństwo
     - dane są szyfrowane
 - dostępność
 	- docelowo użytkownik powinien mieć dostęp do usługi 24/7 (bez przerw)
@@ -127,7 +127,7 @@ Sytuacje błędne po stronie serwera:
     - nie powinna wystąpić - ograniczamy się do 512B na datagram
 - przedwczesne zakończenie połączenia bez odebrania pakietu z błędem
     - zachowujemy informacje o otwartej sesji, a gdy znów będzie chciał klient otworzyć nową sesję to w odpowiedzi serwer prześle kod błędu (wrong operation) zakończy stare połączenie i klient zainicjuje połączenie na nowo
- 
+
 <!-- Wybrane środowisko sprzętowo-programowe (systemy operacyjne, biblioteki programistyczne) i narzędziowe (debugowanie, testowanie). -->
 
 # Środowisko sprzętowo-programowe
@@ -150,11 +150,11 @@ Testy integracyjne oraz jednostkowe postaramy się napisać z wykorzystaniem bib
 Testy manualne będziemy wykonywać korzystając z porozumiewających się kontenerów - podobnie jak testowaliśmy zadania z laboratorium.
 
 <!-- Architekturę rozwiązania, tj. ilustrację i opis struktury logicznej systemu (koncepcyjnych bloków funkcjonalnych). Przykładowo oprogramowanie węzła komunikacyjnego można zdekomponować na następujące bloki:
-- Odbiorca i parser komunikatów, analizujący ich poprawność składniową, sensowność w danym kontekście, wykrywający potencjalne złośliwe komunikaty. 
+- Odbiorca i parser komunikatów, analizujący ich poprawność składniową, sensowność w danym kontekście, wykrywający potencjalne złośliwe komunikaty.
 - Nadawca komunikatów, sprawdzający poprawność danych otrzymanych do wysłania, obsługujący błędy wysyłania.
 - Zarządca sesji lub połączenia. Ten blok nie zawsze jest potrzebny.
 - Rejestrator danych albo zarządca pamięci. Może to być obsługa lokalnej bazy danych.
-- Interfejs do lokalnej aplikacji na rzecz której prowadzona jest komunikacja. 
+- Interfejs do lokalnej aplikacji na rzecz której prowadzona jest komunikacja.
 - Obsługa dziennika zdarzeń.
 - Tester. Moduł działający w tle lub na żądanie sprawdzający spójność przechowywanych danych, poprawność logiczną wykonywanych operacji.
 -->
@@ -216,15 +216,15 @@ flowchart LR
     subgraph Producent Danych 1-N - klient
         w[Nadawca komunikatów]
     end
-    
+
     subgraph Konsument danych - serwer
         o[Odbiorca komunikatów]
         k[...]
-        
+
         o --> k
         k --> o
     end
-    
+
     w --> o
     o --> w
 ```
@@ -232,7 +232,7 @@ flowchart LR
 ### Złożenie w całość
 ```mermaid
 flowchart LR
-    
+
     subgraph Producenci
         subgraph Producent Danych 1 - klient
             s1[Wątek produkujący dane 1]
@@ -252,7 +252,7 @@ flowchart LR
 
         subgraph w2[Producent Danych 2 - klient]
             xd2[...]
-            
+
         end
 
         subgraph w3[Producent Danych ... - klient]
@@ -267,10 +267,10 @@ flowchart LR
             xd5[...]
         end
     end
-    
-        
+
+
     subgraph serwer[Konsument danych - serwer]
-        
+
         o[Odbiorca komunikatów]
 
         z1[Zarządca sesji 1]
@@ -278,24 +278,24 @@ flowchart LR
         z3[Zarządca sesji ...]
         z4[Zarządca sesji N-1]
         z5[Zarządca sesji N]
-        
+
         d[(Baza danych)]
-        
+
         i[Interfejs aplikacji]
-        
+
         o <--> z1
         o <--> z2
         o <--> z3
         o <--> z4
         o <--> z5
-        
-        
+
+
         z1 --> d
         z2 --> d
         z3 --> d
         z4 --> d
         z5 --> d
-        
+
         d --> i
     end
     w <--> o
@@ -365,109 +365,97 @@ flowchart LR
 <!-- https://en.wikipedia.org/wiki/Diffie%E2%80%93Hellman_key_exchange -->
 - żądanie otwarcia sesji
 
-    | Liczba Bitów |       Przechowują        |
-    |:------------:|:------------------------:|
-    |      3       |           typ            |
-    |      8       | suma kontrolna datagramu |
+    | Liczba Bajtów |       Przechowują        |
+    |:-------------:|:------------------------:|
+    |      1        |           typ            |
 
 - uzgodnienie klucza symetrycznego
 
-    | Liczba Bitów |            Przechowują             |
+    | Liczba Bajtów |            Przechowują             |
     |:------------:|:----------------------------------:|
-    |      3       |                typ                 |
-    |      16      |      suma kontrolna datagramu      |
-    |      64      |   klucz publiczny servera ( A )    |
-    |      32      | public (primitive root) base ( g ) |
-    |      32      |    public (prime) modulus ( p )    |
+    |      1       |                typ                 |
+    |      8      |   klucz publiczny servera ( A )    |
+    |      4      | public (primitive root) base ( g ) |
+    |      4      |    public (prime) modulus ( p )    |
 
 **Uwaga:** całe pakiety od tego momentu są szyfrowane kluczem sesyjnym
 
 - deklaracja N strumieni i informacji o nich
 
-    | Liczba Bitów |       Przechowują        |
+    | Liczba Bajtów |       Przechowują        |
     |:------------:|:------------------------:|
-    |      3       |           typ            |
-    |      16      | suma kontrolna datagramu |
-    |      3       |     liczba strumieni     |
-    |     128      |     id strumienia 1      |
-    |     128      |    id strumienia ...     |
-    |     128      |     id strumienia 8      |
+    |      1       |           typ            |
+    |      1       |     liczba strumieni     |
+    |     16      |     id strumienia 1      |
+    |     16      |    id strumienia ...     |
+    |     16      |     id strumienia 8      |
 
 - przesyłana paczka danych
 
-    | Liczba Bitów |           Przechowują           |
+    | Liczba Bajtów |           Przechowują           |
     |:------------:|:-------------------------------:|
-    |      3       |               typ               |
-    |      16      |    suma kontrolna datagramu     |
-    |      16      |  numer przesyłanego datagramu   |
-    |      3       | numer strumienia w ramach sesji |
-    |      32      |            timestamp            |
-    |      32      |              dane               |
+    |      1       |               typ               |
+    |      2      |  numer przesyłanego datagramu   |
+    |      1       | numer strumienia w ramach sesji |
+    |      4      |            timestamp            |
+    |      4      |              dane               |
     |     ...      |               ...               |
-    |      3       | numer strumienia w ramach sesji |
-    |      32      |            timestamp            |
-    |      32      |              dane               |
+    |      1       | numer strumienia w ramach sesji |
+    |      4      |            timestamp            |
+    |      4      |              dane               |
 
 - przesłanie kodu błędu
 
-    | Liczba Bitów |       Przechowują        |
+    | Liczba Bajtów |       Przechowują        |
     |:------------:|:------------------------:|
-    |      3       |           typ            |
-    |      8       | suma kontrolna datagramu |
+    |      1       |           typ            |
 
 - zamknięcie sesji
 
-    | Liczba Bitów |       Przechowują        |
+    | Liczba Bajtów |       Przechowują        |
     |:------------:|:------------------------:|
-    |      3       |           typ            |
-    |      8       | suma kontrolna datagramu |
+    |      1       |           typ            |
 
 ### PDU dla serwera (konsumenta danych)
 - potwierdzenie otwarcia sesji:
 
-    | Liczba Bitów |       Przechowują        |
+    | Liczba Bajtów |       Przechowują        |
     |:------------:|:------------------------:|
-    |      3       |           typ            |
-    |      8       | suma kontrolna datagramu |
+    |      1       |           typ            |
 
 - uzgodnienie klucza symetrycznego:
 
-    | Liczba Bitów |          Przechowują          |
+    | Liczba Bajtów |          Przechowują          |
     |:------------:|:-----------------------------:|
-    |      3       |              typ              |
-    |      16      |   suma kontrolna datagramu    |
-    |      64      | klucz publiczny servera ( B ) |
+    |      1       |              typ              |
+    |      8      | klucz publiczny servera ( B ) |
 
 **Uwaga:** całe pakiety od tego momentu są szyfrowane kluczem sesyjnym
 
 - potwierdzenie odebrania informacji o sesji:
 
-    | Liczba Bitów |       Przechowują        |
+    | Liczba Bajtów |       Przechowują        |
     |:------------:|:------------------------:|
-    |      3       |           typ            |
-    |      8       | suma kontrolna datagramu |
+    |      1       |           typ            |
 
 - potwierdzenie odbioru paczki danych:
 
-    | Liczba Bitów |        Przechowują         |
+    | Liczba Bajtów |        Przechowują         |
     |:------------:|:--------------------------:|
-    |      3       |            typ             |
-    |      16      |  suma kontrolna datagramu  |
-    |      16      | numer odebranego datagramu |
+    |      1       |            typ             |
+    |      2      | numer odebranego datagramu |
 
 - przesłanie kodu błędu
 
-    | Liczba Bitów |       Przechowują        |
+    | Liczba Bajtów |       Przechowują        |
     |:------------:|:------------------------:|
-    |      3       |           typ            |
-    |      8       | suma kontrolna datagramu |
+    |      1       |           typ            |
 
 - zamknięcie sesji:
 
-    | Liczba Bitów |       Przechowują        |
+    | Liczba Bajtów |       Przechowują        |
     |:------------:|:------------------------:|
-    |      3       |           typ            |
-    |      8       | suma kontrolna datagramu |
+    |      1       |           typ            |
 
 <!-- <style>
 .dreamy {
@@ -540,8 +528,8 @@ class Database:
 class Packet:
     content: bytes
     # w zależności od ostatecznej implementacji ta klasa może przechowywać:
-    # - nie przetworząną odpowiedź 
-    #     lub 
+    # - nie przetworząną odpowiedź
+    #     lub
     # - w konstruktorze możemy parsować datagram
     # i przechowywać już przetworzone nagłówki oraz dane
 
@@ -562,7 +550,7 @@ class Receiver:
 
     def _handle(self, packet: Packet) -> Packet:
         # na podstawie adresu IP oraz portu przekaż datagram do odpowiedniego zarządcy seji
-        # jeśli nie istnieje sesja rozpoznawana przez 
+        # jeśli nie istnieje sesja rozpoznawana przez
         # dany adres oraz port stwórz nowego zarządcę sesji i przekaż jemu dany datagram
         # w odpowiedni prześlij do nadawcy datagram przygotowany przez zażądcę sesji
 
