@@ -9,6 +9,10 @@ from packet import Packet
 from session import SessionManager
 from database import Database
 
+from os import fork
+
+from interface import Interface
+
 
 class Receiver:
     """
@@ -112,6 +116,7 @@ class Receiver:
             print(f"Error while sending data: {socketError}")
 
 
+
 def parse_arguments(args: List[str]) -> Tuple[str, int]:
     if len(args) < 3:
         print("No host or port defined, using localhost at 8080 as default")
@@ -132,13 +137,17 @@ def main(args: List[str]) -> None:
         return
 
     database = Database()
-
-    with Receiver(database) as r:
-        try:
-            r.listen(host, port)
-        except socket.error as exception:
-            print(f"Caught exception: {exception}")
-            return
+    
+    if fork():
+        interface = Interface(database)
+        interface.show()
+    else:
+        with Receiver(database) as r:
+            try:
+                r.listen(host, port)
+            except socket.error as exception:
+                print(f"Caught exception: {exception}")
+                return
 
 
 if __name__ == "__main__":
