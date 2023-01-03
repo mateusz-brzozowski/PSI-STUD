@@ -16,12 +16,12 @@ class Packet:
 
 
 packet_type_client = {
-    "initial": b"000",
-    "session_data": b"001",
-    "declaration": b"010",
-    "send": b"011",
-    "error": b"100",
-    "close": b"101"
+    "initial": "000",
+    "session_data": "001",
+    "declaration": "010",
+    "send": "011",
+    "error": "100",
+    "close": "101"
 }
 
 packet_type_server = {
