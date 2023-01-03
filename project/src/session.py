@@ -95,7 +95,7 @@ class SessionManager:
             return self.handle_error()
         stream_count = packet.content()[3:6]
         self.stream_ids = [
-            packet.content()[i: i + 128]
+            str(packet.content()[i: i + 128].decode())
             for i in range(6, 6 + int(stream_count) * 128, 128)
         ]
         self.state = session_manager_states["DATA_TRANSFER"]
@@ -117,11 +117,11 @@ class SessionManager:
             for i in range(0, len(data), data_entry_len)
         ]
         for data_entry in data_entries:
-            stream_id = data_entry[:3]
+            stream_id = int(data_entry[:3].decode())
             timestamp = data_entry[3:35]
             data = data_entry[35:]
             new_data_entry = Data(
-                int(stream_id), bytes_to_datetime(timestamp), data
+                self.stream_ids[stream_id], bytes_to_datetime(timestamp), data
             )
             self.database.insert(new_data_entry, (self.host, self.port))
         # self.state = session_manager_states["SESSION_CLOSING"]

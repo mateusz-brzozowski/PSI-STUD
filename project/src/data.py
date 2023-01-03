@@ -2,12 +2,12 @@ from datetime import datetime
 
 
 class Data:
-    data_stream_id: int
+    data_stream_id: str
     time: datetime
     content: bytes
 
     def __init__(self,
-                 data_stream_id: int,
+                 data_stream_id: str,
                  time: datetime,
                  content: bytes) -> None:
         self.data_stream_id = data_stream_id
