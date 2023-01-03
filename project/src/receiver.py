@@ -107,7 +107,7 @@ class Receiver:
             # ignore case not enough bytes sent -> due to invalid packet
             # received client will resend his packet and then the server
             # will respond again
-            print("Message sent")
+            print(f"Message sent: {datagram.content()}")
         except socket.error as socketError:
             print(f"Error while sending data: {socketError}")
 
