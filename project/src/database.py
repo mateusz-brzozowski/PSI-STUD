@@ -55,6 +55,9 @@ class Database:
     def client_streams(self, client_id: str) -> Set[str]:
         return self.client_stream[client_id]
 
+    def get_data(self) -> Dict[str, List[DataEntry]]:
+        return self.data
+
 
 def client_id(address: str, port: int) -> str:
     return f"{address}:{port}"

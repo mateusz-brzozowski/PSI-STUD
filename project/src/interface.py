@@ -1,5 +1,6 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from multiprocessing import Process
+from multiprocessing.managers import BaseManager
 from time import sleep
 from typing import List
 
@@ -29,6 +30,8 @@ class Interface:
     streams: int
 
     def __init__(self, database: Database, streams: int = 8):
+        print(database)
+        print(database.get_data())
         self.database = database
         self.streams = streams
         self.init_dashboard()
@@ -44,7 +47,7 @@ class Interface:
                 xdata: List[datetime] = []
                 ydata: List[float] = []
 
-                data = self.database.data[f"{client}:{stream}"]
+                data = self.database.get_data()[f"{client}:{stream}"]
 
                 for entry in data[-SIZE:]:
                     xdata.append(entry.time)
@@ -58,15 +61,15 @@ class Interface:
                 break
 
         sleep(1)
+        print(self.database.get_data())
 
     def init_dashboard(self) -> None:
         self.fig, self.axis = plt.subplots(MAX_CLIENTS)
 
     def show(self) -> None:
-        ani = FuncAnimation(
+        anim = FuncAnimation(
             self.fig, self.animate, frames=np.array(list(range(40)))
         )
-        ani.resume()  # so that the linter shuts up
         plt.show()
 
 
@@ -81,15 +84,19 @@ class Interface:
 
 
 def main():
-    database = Database()
-    print(database)
+    BaseManager.register(typeid="Database", callable=Database, exposed=("get_data", "insert", "clients_address", "client_streams"))
+    manager = BaseManager()
+    manager.start()
+    database: Database = manager.Database()
+    data = Data("s", datetime.now(), b"7")
+    database.insert(data, ("localhost", 8080))
+    data_2 = Data("s", datetime.now() + timedelta(days=180), b"10")
+    database.insert(data_2, ("localhost", 8080))
     interface_proc = Process(target=Interface, args=(database,))
     interface_proc.start()
     sleep(5)
-    print("uga buga")
-    data = Data("sen_1", datetime.now(), b"107.0")
-    database.insert(data, ("localhost", 8080))
-    print(database)
+    data_3 = Data("s", datetime.now() + timedelta(days=360), b"12")
+    database.insert(data_3, ("localhost", 8080))
 
 
 if __name__ == "__main__":
