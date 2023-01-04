@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Tuple, Mapping, List, Set
+from typing import Dict, List, Set, Tuple
 
 from data import Data
 from utility import unpack
@@ -22,8 +22,8 @@ class Database:
     """
 
     clients: Set[str]
-    client_stream: Mapping[str, Set[str]]
-    data: Mapping[str, List[DataEntry]]
+    client_stream: Dict[str, Set[str]]  # Mapping is too generic imo
+    data: Dict[str, List[DataEntry]]
 
     def __init__(self) -> None:
         self.data = {}
@@ -34,7 +34,6 @@ class Database:
         client = client_id(address[0], address[1])
         self.clients.add(client)
         self.client_stream[client].add(data.data_stream_id)
-        
         key = address_id(data.data_stream_id, address[0], address[1])
 
         # data.content = bytes (as of now), not float
@@ -46,16 +45,18 @@ class Database:
             self.data[key].append(new_entry)
 
         print(f"New data from {data.time} received from {key}.")
-        print(f"Data: {data.content}")
+        print(f"Data: {data.content!r}")
 
     def clients_address(self) -> Set[str]:
         return self.clients
-    
+
     def client_streams(self, client_id: str) -> Set[str]:
         return self.client_stream[client_id]
 
+
 def client_id(address: str, port: int) -> str:
     return f"{address}:{port}"
+
 
 def address_id(stream_id: str, address: str, port: int) -> str:
     return f"{address}:{port}:{stream_id}"

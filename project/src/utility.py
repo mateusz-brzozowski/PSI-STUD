@@ -1,5 +1,5 @@
-from datetime import datetime
 import struct
+from datetime import datetime
 
 
 def datetime_to_bytes(datetime: datetime) -> bytes:
@@ -11,7 +11,7 @@ def bytes_to_datetime(bytes: bytes) -> datetime:
 
 
 def string_to_binary(string: str) -> str:
-    return ''.join(format(ord(i), 'b') for i in string)
+    return "".join(format(ord(i), "b") for i in string)
 
 
 def pack(value: int, size: int) -> bytes:

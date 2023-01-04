@@ -21,7 +21,7 @@ packet_type_client = {
     "declaration": "3",
     "send": "4",
     "error": "5",
-    "close": "6"
+    "close": "6",
 }
 
 packet_type_server = {

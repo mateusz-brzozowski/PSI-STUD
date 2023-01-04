@@ -1,16 +1,20 @@
 from datetime import datetime
+from multiprocessing import Process
 from time import sleep
+from typing import List
 
 import matplotlib.pyplot as plt  # type: ignore
 import numpy as np
-from typing import List
-
-# from data import Data
+import seaborn as sns  # type: ignore
+from data import Data
 from database import Database
 from matplotlib.animation import FuncAnimation  # type: ignore
 
+sns.set_style("darkgrid")
+
 SIZE = 10
 MAX_CLIENTS = 2
+
 
 class Interface:
     """
@@ -28,29 +32,33 @@ class Interface:
         self.database = database
         self.streams = streams
         self.init_dashboard()
+        self.show()
 
     def animate(self, i: int):
         i = 0
         for client in self.database.clients_address():
-            
+
             self.axis[i].set_title(f"Data source: {client}")
-            
+
             for stream in self.database.client_streams(client):
                 xdata: List[datetime] = []
                 ydata: List[float] = []
-                
+
                 data = self.database.data[f"{client}:{stream}"]
-                
+
                 for entry in data[-SIZE:]:
                     xdata.append(entry.time)
                     ydata.append(entry.value)
                     self.axis[i].clear()
-                    self.axis[i].plot(xdata, ydata, 'o', label=f"Stream {stream}")
+                    self.axis[i].plot(
+                        xdata, ydata, "o", label=f"Stream {stream}"
+                    )
             i = i + 1
             if i > MAX_CLIENTS:
                 break
 
         sleep(1)
+        print(self.database)
         # return
 
     def init_dashboard(self):
@@ -74,12 +82,15 @@ class Interface:
 
 
 def main():
-    # db = Database()
-    # data1 = Data()
-    # db.insert()
-    # interface = Interface("db_placeholder", 4)
-    # interface.show()
-    pass
+    database = Database()
+    print(database)
+    interface_proc = Process(target=Interface, args=(database,))
+    interface_proc.start()
+    sleep(5)
+    print("uga buga")
+    data = Data("sen_1", datetime.now(), b"107.0")
+    database.insert(data, ("localhost", 8080))
+    print(database)
 
 
 if __name__ == "__main__":

@@ -1,19 +1,20 @@
 from __future__ import annotations
-from queue import Queue
-from typing import Tuple, List, Optional, Type
-from types import TracebackType
-from packet import Packet, packet_type_client, packet_type_server
-from datetime import datetime
-from threading import *
-import time
-import random
-import string
-import socket
-import diffie_hellman
-import sys
-from utility import string_to_binary, pack, unpack
 
+import random
+import socket
+import string
+import sys
+import time
+from datetime import datetime
+from queue import Queue
+from threading import Semaphore, Thread
+from types import TracebackType
+from typing import List, Optional, Tuple, Type
+
+# import diffie_hellman
 from data import SenderData
+from packet import Packet, packet_type_client
+from utility import pack
 
 
 class Sender:
@@ -36,11 +37,11 @@ class Sender:
     send_buffer: Queue[SenderData]
     semaphore: Semaphore
     _session_key: int
-    _public_key: int            # A
-    _private_key: int           # a
-    _receiver_public_key: int   # B
-    _prime_number: int          # p
-    _primitive_root: int        # g
+    _public_key: int  # A
+    _private_key: int  # a
+    _receiver_public_key: int  # B
+    _prime_number: int  # p
+    _primitive_root: int  # g
     _sock: socket.socket
     _send_datagram_number: int
     _work: bool
@@ -81,8 +82,8 @@ class Sender:
             self._sock.connect(address)
         except socket.error as exception:
             raise socket.error(
-                f'Error while connecting: {exception}'
-            )
+                f"Error while connecting: {exception}"
+            ) from exception
 
         self.init()
         self.send_declaration()
@@ -111,29 +112,31 @@ class Sender:
             else:
                 self.send(self._previous_datagram)
         self.init()
+        return False
 
     def send(self, message: Packet) -> None:
         try:
-            print(f"message send: {message.content()}")
+            print(f"message send: {message.content()!r}")
             self._sock.send(message.content())
             self._previous_datagram = message
         except socket.error as exception:
-            print(f'Exception while sending data: {exception}')
+            print(f"Exception while sending data: {exception}")
         except UnicodeEncodeError as exception:
-            print(f'Exception while encoding text to bytes: {exception}')
+            print(f"Exception while encoding text to bytes: {exception}")
 
     def receive(self) -> bool:
-        try:    # TODO: jeśli otrzymam error inny niż malformed data zwracam true
+        try:  # TODO: jeśli otrzymam error inny niż malformed data zwracam true
             data = self._sock.recv(512)
-            print(f"message received: {data}")
+            print(f"message received: {data!r}")
             if self._previous_datagram.content()[:1] == data[:1]:
                 return True
             # print(data.decode('ascii'))
             # TODO: czyścimy buffer ale tylko w odpowiednim przypadku
         except socket.error as exception:
-            print(f'Exception while receiving data: {exception}')
+            print(f"Exception while receiving data: {exception}")
         except UnicodeDecodeError as exception:
-            print(f'Exception while decoding text to bytes: {exception}')
+            print(f"Exception while decoding text to bytes: {exception}")
+        return False
 
     def init(self):
         self.send(Packet(packet_type_client["initial"].encode()))
@@ -142,8 +145,13 @@ class Sender:
     def send_session_data(self) -> None:
         self._type = 1
         print(
-            f"{self._type}:{self._public_key}:{self._primitive_root}:{self._prime_number}")
-        message = f"{self._type:03b}{self._public_key:064b}{self._primitive_root:032b}{self._prime_number:032b}"
+            f"{self._type}:{self._public_key}:"
+            f"{self._primitive_root}:{self._prime_number}"
+        )
+        message = (
+            f"{self._type:03b}{self._public_key:064b}"
+            f"{self._primitive_root:032b}{self._prime_number:032b}"
+        )
         self.send(Packet(message.encode()))
 
     def send_declaration(self) -> None:
@@ -155,8 +163,9 @@ class Sender:
             self._work = True
 
     def send_data(self) -> None:
-        message = packet_type_client["send"].encode() + \
-            pack(self._send_datagram_number, 2)
+        message = packet_type_client["send"].encode() + pack(
+            self._send_datagram_number, 2
+        )
         while not self.send_buffer.empty():
             data = self.send_buffer.get()
             message += pack(data.data_stream_id, 1)
@@ -177,20 +186,23 @@ class Sender:
 
 def generate_data(length: int) -> str:
     letters = string.ascii_lowercase
-    return ''.join(random.choice(letters) for _ in range(length))
+    return "".join(random.choice(letters) for _ in range(length))
 
 
 def thread_generator(id, sender):
     while True:
-        sender.save_data_to_buffer(SenderData(
-            id, datetime.now(), pack(random.randint(100, 1000), 4)))
+        sender.save_data_to_buffer(
+            SenderData(id, datetime.now(), pack(random.randint(100, 1000), 4))
+        )
         time.sleep(random.randint(1, 10) / 10)
 
 
-def parse_arguments(args: List[str]) -> Tuple[str, int, bool]:
+def parse_arguments(args: List[str]) -> Tuple[str, int]:
     if len(args) < 3:
-        print('No host and/or port defined, using localhost at 8080 as default')
-        host = 'localhost'
+        print(
+            "No host and/or port defined, using localhost at 8080 as default"
+        )
+        host = "localhost"
         port = 8080
     else:
         host = sys.argv[1]
@@ -205,10 +217,10 @@ def main(args: List[str]) -> None:
     try:
         (host, port) = parse_arguments(args)
     except socket.error as exception:
-        print(f'Get host by name raised an exception: {exception}')
+        print(f"Get host by name raised an exception: {exception}")
         return
     except ValueError as exception:
-        print(f'Error while parsing arguments: {exception}')
+        print(f"Error while parsing arguments: {exception}")
         return
 
     number_of_threads = 8
@@ -218,17 +230,18 @@ def main(args: List[str]) -> None:
     with Sender((host, port), semaphore) as s:
         for thread_id in range(number_of_threads):
             threads.append(
-                Thread(target=thread_generator, args=(thread_id, s)))
+                Thread(target=thread_generator, args=(thread_id, s))
+            )
         for thread in threads:
             thread.start()
 
         try:
             s.work()
         except socket.error as exception:
-            print(f'Caught exception: {exception}')
+            print(f"Caught exception: {exception}")
 
-    print('Client finished.')
+    print("Client finished.")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main(sys.argv)

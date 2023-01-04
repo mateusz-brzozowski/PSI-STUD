@@ -2,16 +2,14 @@ from __future__ import annotations
 
 import socket
 import sys
+from multiprocessing import Process
 from types import TracebackType
 from typing import Dict, List, Optional, Tuple, Type
 
+from database import Database
+from interface import Interface
 from packet import Packet
 from session import SessionManager
-from database import Database
-
-from os import fork
-
-from interface import Interface
 
 
 class Receiver:
@@ -111,10 +109,9 @@ class Receiver:
             # ignore case not enough bytes sent -> due to invalid packet
             # received client will resend his packet and then the server
             # will respond again
-            print(f"Message sent: {datagram.content()}")
+            print(f"Message sent: {datagram.content()!r}")
         except socket.error as socketError:
             print(f"Error while sending data: {socketError}")
-
 
 
 def parse_arguments(args: List[str]) -> Tuple[str, int]:
@@ -137,17 +134,28 @@ def main(args: List[str]) -> None:
         return
 
     database = Database()
-    
-    if fork():
-        interface = Interface(database)
-        interface.show()
-    else:
-        with Receiver(database) as r:
-            try:
-                r.listen(host, port)
-            except socket.error as exception:
-                print(f"Caught exception: {exception}")
-                return
+
+    # from os import fork
+    # if fork():
+    #     interface = Interface(database)
+    #     interface.show()
+    # else:
+    #     with Receiver(database) as r:
+    #         try:
+    #             r.listen(host, port)
+    #         except socket.error as exception:
+    #             print(f"Caught exception: {exception}")
+    #             return
+
+    # not gonna work cause once passed the database is a different object
+    interface_proc = Process(target=Interface, args=(database,))
+    interface_proc.start()
+    with Receiver(database) as r:
+        try:
+            r.listen(host, port)
+        except socket.error as exception:
+            print(f"Caught exception: {exception}")
+            return
 
 
 if __name__ == "__main__":
