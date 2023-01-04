@@ -6,7 +6,7 @@ def get_data() -> Tuple[int, int, int, int]:
     prime_number = get_random_prime_number(100, 1000)
     primitive_root = get_primitive_root(prime_number)
     private_key = get_random_number(100, 1000)
-    public_key = (primitive_root**private_key) % prime_number
+    public_key: int = (primitive_root**private_key) % prime_number
     return prime_number, primitive_root, private_key, public_key
 
 
@@ -31,7 +31,7 @@ def is_prime(number: int) -> bool:
 
 def get_primitive_root(prime_number: int) -> int:
     factors = get_prime_factors(prime_number - 1)
-    primitive_roots = []
+    primitive_roots: List[int] = []
     for i in range(2, prime_number):
         for factor in factors:
             if i ** ((prime_number - 1) // factor) % prime_number == 1:

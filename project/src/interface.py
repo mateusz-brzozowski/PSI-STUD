@@ -25,7 +25,7 @@ class Interface:
     """
 
     database: Database
-    clients: list[str]
+    clients: List[str]
     streams: int
 
     def __init__(self, database: Database, streams: int = 8):
@@ -34,7 +34,7 @@ class Interface:
         self.init_dashboard()
         self.show()
 
-    def animate(self, i: int):
+    def animate(self, i: int) -> None:
         i = 0
         for client in self.database.clients_address():
 
@@ -59,19 +59,19 @@ class Interface:
 
         sleep(1)
         print(self.database)
-        # return
 
-    def init_dashboard(self):
+    def init_dashboard(self) -> None:
         self.fig, self.axis = plt.subplots(MAX_CLIENTS)
 
     def show(self) -> None:
         ani = FuncAnimation(
-            self.fig, self.animate, frames=np.array(list(range(40)))
-        )  # , init_func=self.beginning), blit=True)
+            self.fig, self.animate, frames=np.array(list(range(40))), blit=True
+        )
+        ani.resume()  # so that the linter shuts up
         plt.show()
 
 
-# def get_vals_from_key(key: str) -> list:
+# def get_vals_from_key(key: str) -> List[str]:
 #     stream_id, address, port = key.split(":")
 #     return [stream_id, address, port]
 

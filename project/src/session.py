@@ -65,11 +65,7 @@ class SessionManager:
         Metoda pomocnicza służąca
         potwierdzeniu otwarcia sesji
         """
-        if self.state != session_manager_states["INIT"]:
-            self.state = session_manager_states["ERROR"]
-            return self.handle_error()
-        self.state = session_manager_states["SYMMETRIC_KEY_NEGOTIATION"]
-        return Packet(packet_type_server["initial"].encode())
+        return self.simple_ack("INIT", "SYMMETRIC_KEY_NEGOTIATION", "initial")
 
     def handle_session_data(self, packet: Packet) -> Packet:
         """
@@ -79,9 +75,9 @@ class SessionManager:
         if self.state != session_manager_states["SYMMETRIC_KEY_NEGOTIATION"]:
             self.state = session_manager_states["ERROR"]
             return self.handle_error()
-        server_public_key_A = packet.content()[3:67]
-        public_primitive_root_base_g = packet.content()[67:99]
-        public_prime_modulus_p = packet.content()[99:131]
+        # server_public_key_A = packet.content()[3:67]
+        # public_primitive_root_base_g = packet.content()[67:99]
+        # public_prime_modulus_p = packet.content()[99:131]
         server_public_key_B = bytes(12345)  # TODO: wygenerować klucz publiczny
         self.state = session_manager_states["SESSION_CONFIRMATION"]
         return Packet(
@@ -139,11 +135,16 @@ class SessionManager:
         Metoda pomocnicza służąca
         potwierdzeniu zamknięcia sesji
         """
-        if self.state != session_manager_states["SESSION_CLOSING"]:
+        return self.simple_ack("SESSION_CLOSING", "INIT", "close")
+
+    def simple_ack(
+        self, expected_state: str, next_state: str, return_packet_type: str
+    ) -> Packet:
+        if self.state != session_manager_states[expected_state]:
             self.state = session_manager_states["ERROR"]
             return self.handle_error()
-        self.state = session_manager_states["INIT"]
-        return Packet(packet_type_server["close"].encode())
+        self.state = session_manager_states[next_state]
+        return Packet(packet_type_server[return_packet_type].encode())
 
     def handle_error(self) -> Packet:
         """

@@ -189,7 +189,7 @@ def generate_data(length: int) -> str:
     return "".join(random.choice(letters) for _ in range(length))
 
 
-def thread_generator(id, sender):
+def thread_generator(id: int, sender: Sender) -> None:
     while True:
         sender.save_data_to_buffer(
             SenderData(id, datetime.now(), pack(random.randint(100, 1000), 4))
@@ -224,14 +224,14 @@ def main(args: List[str]) -> None:
         return
 
     number_of_threads = 8
-    threads = []
+    threads: List[Thread] = []
     semaphore = Semaphore(number_of_threads)
 
     with Sender((host, port), semaphore) as s:
-        for thread_id in range(number_of_threads):
-            threads.append(
-                Thread(target=thread_generator, args=(thread_id, s))
-            )
+        threads.extend(
+            Thread(target=thread_generator, args=(thread_id, s))
+            for thread_id in range(number_of_threads)
+        )
         for thread in threads:
             thread.start()
 
