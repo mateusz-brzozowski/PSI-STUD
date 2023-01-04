@@ -14,7 +14,7 @@ from typing import List, Optional, Tuple, Type
 # import diffie_hellman
 from data import SenderData
 from packet import Packet, packet_type_client
-from utility import pack
+from utility import pack, unpack
 
 
 class Sender:
@@ -116,7 +116,23 @@ class Sender:
 
     def send(self, message: Packet) -> None:
         try:
-            print(f"message send: {message.content()!r}")
+            if chr(message.content()[0]) in (
+                packet_type_client["declaration"],
+                packet_type_client["initial"],
+            ):
+                print(f'Message send: "{message.content().decode()}"')
+            else:
+                msg_type = int(chr(message.content()[0]))
+                datagram_num = unpack(message.content()[1:3])
+                data_str: str = ""
+                for i in range(3, len(message.content()), self.DATA_SIZE):
+                    data_id = unpack(message.content()[i : i + 1])
+                    data_timestamp = unpack(message.content()[i + 1 : i + 5])
+                    data_content = unpack(
+                        message.content()[i + 5 : i + self.DATA_SIZE]
+                    )
+                    data_str += f"[{data_id} {data_timestamp} {data_content}]"
+                print(f'Message send: "{msg_type} {datagram_num} {data_str}"')
             self._sock.send(message.content())
             self._previous_datagram = message
         except socket.error as exception:
@@ -127,7 +143,12 @@ class Sender:
     def receive(self) -> bool:
         try:  # TODO: jeśli otrzymam error inny niż malformed data zwracam true
             data = self._sock.recv(512)
-            print(f"message received: {data!r}")
+            msg_type = int(chr(data[0]))
+            if msg_type == 4:
+                msg_content = unpack(data[1:])
+                print(f"Message received: {msg_type} {msg_content}")
+            else:
+                print(f"Message received: {data.decode()}")
             if self._previous_datagram.content()[:1] == data[:1]:
                 return True
             # print(data.decode('ascii'))
@@ -166,12 +187,14 @@ class Sender:
         message = packet_type_client["send"].encode() + pack(
             self._send_datagram_number, 2
         )
-        while not self.send_buffer.empty():
+        # while not self.send_buffer.empty():
+        for _ in range((self.MAX_DATA_SIZE - len(message)) // self.DATA_SIZE):
             data = self.send_buffer.get()
             message += pack(data.data_stream_id, 1)
             message += pack(int(data.time.timestamp()), 4)
             message += data.content
 
+        print(f"Rozmiar pakietu: {len(message)}")
         self.send(Packet(message))
         self._send_datagram_number += 1
 

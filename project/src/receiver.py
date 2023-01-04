@@ -2,14 +2,13 @@ from __future__ import annotations
 
 import socket
 import sys
-from multiprocessing import Process
 from types import TracebackType
 from typing import Dict, List, Optional, Tuple, Type
 
 from database import Database
-from interface import Interface
 from packet import Packet
 from session import SessionManager
+from utility import unpack
 
 
 class Receiver:
@@ -96,8 +95,8 @@ class Receiver:
 
         try:
             return manager.handle(datagram)
-        except Exception as exception:
-            print(exception)
+        except socket.error as exception:
+            print(f"Exception while handling data: {exception}")
 
         return None
 
@@ -109,7 +108,12 @@ class Receiver:
             # ignore case not enough bytes sent -> due to invalid packet
             # received client will resend his packet and then the server
             # will respond again
-            print(f"Message sent: {datagram.content()!r}")
+            msg_type = int(chr(datagram.content()[0]))
+            if msg_type == 4:
+                msg_content = unpack(datagram.content()[1:])
+                print(f"Message sent: {msg_type} {msg_content}")
+            else:
+                print(f"Message sent: {datagram.content().decode()}")
         except socket.error as socketError:
             print(f"Error while sending data: {socketError}")
 
@@ -148,8 +152,10 @@ def main(args: List[str]) -> None:
     #             return
 
     # not gonna work cause once passed the database is a different object
-    interface_proc = Process(target=Interface, args=(database,))
-    interface_proc.start()
+    # from multiprocessing import Process
+    # from interface import Interface
+    # interface_proc = Process(target=Interface, args=(database,))
+    # interface_proc.start()
     with Receiver(database) as r:
         try:
             r.listen(host, port)

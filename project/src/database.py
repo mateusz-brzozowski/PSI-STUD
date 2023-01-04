@@ -33,7 +33,7 @@ class Database:
     def insert(self, data: Data, address: Tuple[str, int]) -> None:
         client = client_id(address[0], address[1])
         self.clients.add(client)
-        self.client_stream[client].add(data.data_stream_id)
+        self.client_stream[client] = set(data.data_stream_id)
         key = address_id(data.data_stream_id, address[0], address[1])
 
         # data.content = bytes (as of now), not float
@@ -44,8 +44,10 @@ class Database:
         else:
             self.data[key].append(new_entry)
 
-        print(f"New data from {data.time} received from {key}.")
-        print(f"Data: {data.content!r}")
+        print(
+            f"New data from {data.time} received from {key}: "
+            f"{unpack(data.content)}"
+        )
 
     def clients_address(self) -> Set[str]:
         return self.clients

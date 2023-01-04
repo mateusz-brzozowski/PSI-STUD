@@ -58,14 +58,13 @@ class Interface:
                 break
 
         sleep(1)
-        print(self.database)
 
     def init_dashboard(self) -> None:
         self.fig, self.axis = plt.subplots(MAX_CLIENTS)
 
     def show(self) -> None:
         ani = FuncAnimation(
-            self.fig, self.animate, frames=np.array(list(range(40))), blit=True
+            self.fig, self.animate, frames=np.array(list(range(40)))
         )
         ani.resume()  # so that the linter shuts up
         plt.show()
