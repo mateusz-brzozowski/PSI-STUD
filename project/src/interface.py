@@ -62,15 +62,17 @@ class Interface:
                     xdata.append(entry.time)
                     ydata.append(entry.value)
                     # self.axis[i].clear()
-                    self.axis[i].plot(
-                        xdata,
-                        ydata,
-                        "o-",
-                        label=f"Stream {stream}",
-                        color=COLORS[
-                            self.database.client_streams(client).index(stream)
-                        ],
-                    )
+                
+                self.axis[i].plot(
+                    xdata,
+                    ydata,
+                    "o-",
+                    label=f"Stream {stream}",
+                    color=COLORS[
+                        self.database.client_streams(client).index(stream)
+                    ],
+                )
+            self.axis[i].legend()
             i = i + 1
             if i > MAX_CLIENTS:
                 break
