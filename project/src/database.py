@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Dict, List, Set, Tuple
+from typing import Dict, List, Tuple
 
 from data import Data
 from utility import unpack
@@ -21,19 +21,23 @@ class Database:
     - agreguje wszystkie otrzymywane dane
     """
 
-    clients: Set[str]
-    client_stream: Dict[str, Set[str]]  # Mapping is too generic imo
+    clients: List[str]
+    client_stream: Dict[str, List[str]]  # Mapping is too generic imo
     data: Dict[str, List[DataEntry]]
 
     def __init__(self) -> None:
         self.data = {}
-        self.clients = set()
+        self.clients = []
         self.client_stream = {}
 
     def insert(self, data: Data, address: Tuple[str, int]) -> None:
         client = client_id(address[0], address[1])
-        self.clients.add(client)
-        self.client_stream[client] = set(data.data_stream_id)
+        if client not in self.clients:
+            self.clients.append(client)
+        if client not in self.client_stream.keys():
+            self.client_stream[client] = [data.data_stream_id]
+        elif data.data_stream_id not in self.client_stream[client]:
+            self.client_stream[client].append(data.data_stream_id)
         key = address_id(data.data_stream_id, address[0], address[1])
 
         # data.content = bytes (as of now), not float
@@ -45,18 +49,15 @@ class Database:
             self.data[key].append(new_entry)
 
         print(
-            f"New data from {data.time} received from {key}: "
+            f"Nowe dane datowane na {data.time} pochodzące od {key}: "
             f"{unpack(data.content)}"
         )
 
-    def clients_address(self) -> Set[str]:
+    def clients_address(self) -> List[str]:
         return self.clients
 
-    def client_streams(self, client_id: str) -> Set[str]:
+    def client_streams(self, client_id: str) -> List[str]:
         return self.client_stream[client_id]
-
-    def get_data(self) -> Dict[str, List[DataEntry]]:
-        return self.data
 
 
 def client_id(address: str, port: int) -> str:

@@ -82,7 +82,7 @@ class Sender:
             self._sock.connect(address)
         except socket.error as exception:
             raise socket.error(
-                f"Error while connecting: {exception}"
+                f"Wyjątek podczas nawiązywania połączenia: {exception}"
             ) from exception
 
         self.init()
@@ -116,29 +116,41 @@ class Sender:
 
     def send(self, message: Packet) -> None:
         try:
-            if chr(message.content()[0]) in (
-                packet_type_client["declaration"],
-                packet_type_client["initial"],
-            ):
-                print(f'Message send: "{message.content().decode()}"')
+            if chr(message.content()[0]) == packet_type_client["declaration"]:
+                msg = message.content().decode()
+                msg_type = int(msg[0])
+                msg_sen_num = int(msg[1])
+                data_str = "".join(
+                    f"[{msg[i:i + 16]}]" for i in range(2, len(msg), 16)
+                )
+                print(
+                    f'Wiadomość wysłana: "{msg_type} {msg_sen_num} {data_str}"'
+                )
+            elif chr(message.content()[0]) == packet_type_client["initial"]:
+                print(f"Wiadomość wysłana: {message.content().decode()}")
             else:
-                msg_type = int(chr(message.content()[0]))
-                datagram_num = unpack(message.content()[1:3])
-                data_str: str = ""
-                for i in range(3, len(message.content()), self.DATA_SIZE):
-                    data_id = unpack(message.content()[i : i + 1])
-                    data_timestamp = unpack(message.content()[i + 1 : i + 5])
-                    data_content = unpack(
-                        message.content()[i + 5 : i + self.DATA_SIZE]
-                    )
-                    data_str += f"[{data_id} {data_timestamp} {data_content}]"
-                print(f'Message send: "{msg_type} {datagram_num} {data_str}"')
+                self._extracted_from_send_14(message)
             self._sock.send(message.content())
             self._previous_datagram = message
         except socket.error as exception:
-            print(f"Exception while sending data: {exception}")
+            print(f"Wyjątek podczas wysyłania danych: {exception}")
         except UnicodeEncodeError as exception:
-            print(f"Exception while encoding text to bytes: {exception}")
+            print(f"Wyjątek podczas enkodowania tekstu na bajty: {exception}")
+
+    # TODO Rename this here and in `send`
+    def _extracted_from_send_14(self, message):
+        msg_type = int(chr(message.content()[0]))
+        datagram_num = unpack(message.content()[1:3])
+        data_str: str = ""
+        for i in range(3, len(message.content()), self.DATA_SIZE):
+            data_id = unpack(message.content()[i : i + 1])
+            data_timestamp = unpack(message.content()[i + 1 : i + 5])
+            data_content = unpack(
+                message.content()[i + 5 : i + self.DATA_SIZE]
+            )
+            data_str += f"[{data_id} {data_timestamp} {data_content}]"
+        print("Wiadomość wysłana: " f'{msg_type} {datagram_num} {data_str}"')
+        print("Wiadomość wysłana (raw): " f'{message.content()[:100]!r}[...]"')
 
     def receive(self) -> bool:
         try:  # TODO: jeśli otrzymam error inny niż malformed data zwracam true
@@ -146,17 +158,17 @@ class Sender:
             msg_type = int(chr(data[0]))
             if msg_type == 4:
                 msg_content = unpack(data[1:])
-                print(f"Message received: {msg_type} {msg_content}")
+                print(f"Otrzymana wiadomość: {msg_type} {msg_content}")
             else:
-                print(f"Message received: {data.decode()}")
+                print(f"Otrzymana wiadomość: {data.decode()}")
             if self._previous_datagram.content()[:1] == data[:1]:
                 return True
             # print(data.decode('ascii'))
             # TODO: czyścimy buffer ale tylko w odpowiednim przypadku
         except socket.error as exception:
-            print(f"Exception while receiving data: {exception}")
+            print(f"Wyjątek podczas otrzymywania danych:: {exception}")
         except UnicodeDecodeError as exception:
-            print(f"Exception while decoding text to bytes: {exception}")
+            print(f"Wyjątek podczas dekodowania tekstu na bajty: {exception}")
         return False
 
     def init(self):
@@ -213,17 +225,22 @@ def generate_data(length: int) -> str:
 
 
 def thread_generator(id: int, sender: Sender) -> None:
+    last = random.randint(100, 1000)
     while True:
+        new = min(max(last + random.randint(-50, 50), 100), 1000)
+        last = new
         sender.save_data_to_buffer(
-            SenderData(id, datetime.now(), pack(random.randint(100, 1000), 4))
+            SenderData(id, datetime.now(), pack(new, 4))
         )
-        time.sleep(random.randint(1, 10) / 10)
+        time.sleep(random.random() + 1.1)
 
 
 def parse_arguments(args: List[str]) -> Tuple[str, int]:
     if len(args) < 3:
         print(
-            "No host and/or port defined, using localhost at 8080 as default"
+            "Brak zdefiniowanego hosta lub portu, "
+            "jako wartość domyślna użyty zostanie "
+            "adres localhost na porcie 8080"
         )
         host = "localhost"
         port = 8080
@@ -240,10 +257,10 @@ def main(args: List[str]) -> None:
     try:
         (host, port) = parse_arguments(args)
     except socket.error as exception:
-        print(f"Get host by name raised an exception: {exception}")
+        print(f"Metoda gethostbyname() zgłosiła wyjątek: {exception}")
         return
     except ValueError as exception:
-        print(f"Error while parsing arguments: {exception}")
+        print(f"Wyjątek podczas parsowania argumentów: {exception}")
         return
 
     number_of_threads = 8
@@ -261,9 +278,9 @@ def main(args: List[str]) -> None:
         try:
             s.work()
         except socket.error as exception:
-            print(f"Caught exception: {exception}")
+            print(f"Złapano wyjątek: {exception}")
 
-    print("Client finished.")
+    print("Klient zakończył swoje działanie")
 
 
 if __name__ == "__main__":

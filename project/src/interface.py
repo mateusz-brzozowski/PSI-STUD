@@ -1,6 +1,6 @@
-from datetime import datetime, timedelta
-from multiprocessing import Process
-from multiprocessing.managers import BaseManager
+import random
+from datetime import datetime
+from threading import Thread
 from time import sleep
 from typing import List
 
@@ -10,9 +10,11 @@ import seaborn as sns  # type: ignore
 from data import Data
 from database import Database
 from matplotlib.animation import FuncAnimation  # type: ignore
+from utility import pack
 
 sns.set_style("darkgrid")
 
+COLORS = sns.color_palette("magma", 8)
 SIZE = 10
 MAX_CLIENTS = 2
 
@@ -30,38 +32,50 @@ class Interface:
     streams: int
 
     def __init__(self, database: Database, streams: int = 8):
-        print(database)
-        print(database.get_data())
         self.database = database
         self.streams = streams
         self.init_dashboard()
-        self.show()
 
     def animate(self, i: int) -> None:
         i = 0
         for client in self.database.clients_address():
 
-            self.axis[i].set_title(f"Data source: {client}")
+            # self.axis[i].set_title(f"Data source: {client}")
+            # print(self.database.client_streams(client))
 
             for stream in self.database.client_streams(client):
                 xdata: List[datetime] = []
                 ydata: List[float] = []
 
-                data = self.database.get_data()[f"{client}:{stream}"]
+                data = self.database.data.get(f"{client}:{stream}")
+                if data is None:
+                    continue
+                # print(f"{client}:{stream}")
 
+                if self.database.client_streams(client).index(stream) == 0:
+                    self.axis[i].clear()
+                self.axis[i].set_title(f"Data source: {client}")
+                # self.axis[i].set_xlim((datetime.now() - timedelta(seconds=5)).timestamp(), (datetime.now() + timedelta(seconds=5)).timestamp())
+                self.axis[i].set_ylim(50, 1050)
                 for entry in data[-SIZE:]:
+                    # for entry in data:
                     xdata.append(entry.time)
                     ydata.append(entry.value)
-                    self.axis[i].clear()
+                    # self.axis[i].clear()
                     self.axis[i].plot(
-                        xdata, ydata, "o", label=f"Stream {stream}"
+                        xdata,
+                        ydata,
+                        "o-",
+                        label=f"Stream {stream}",
+                        color=COLORS[
+                            self.database.client_streams(client).index(stream)
+                        ],
                     )
             i = i + 1
             if i > MAX_CLIENTS:
                 break
 
-        sleep(1)
-        print(self.database.get_data())
+        # sleep(1)
 
     def init_dashboard(self) -> None:
         self.fig, self.axis = plt.subplots(MAX_CLIENTS)
@@ -83,20 +97,23 @@ class Interface:
 #     return f"Data source: {address}:{port}"
 
 
+def insert_data(database: Database) -> None:
+    while True:
+        sleep(5)
+        data = Data(
+            "uga_buga",
+            datetime.now(),
+            pack(int(random.random() * 900 + 100), 4),
+        )
+        database.insert(data, ("localhost", 8080))
+
+
 def main():
-    BaseManager.register(typeid="Database", callable=Database, exposed=("get_data", "insert", "clients_address", "client_streams"))
-    manager = BaseManager()
-    manager.start()
-    database: Database = manager.Database()
-    data = Data("s", datetime.now(), b"7")
-    database.insert(data, ("localhost", 8080))
-    data_2 = Data("s", datetime.now() + timedelta(days=180), b"10")
-    database.insert(data_2, ("localhost", 8080))
-    interface_proc = Process(target=Interface, args=(database,))
-    interface_proc.start()
-    sleep(5)
-    data_3 = Data("s", datetime.now() + timedelta(days=360), b"12")
-    database.insert(data_3, ("localhost", 8080))
+    database = Database()
+    interface = Interface(database)
+    ins_data = Thread(target=insert_data, args=(database,))
+    ins_data.start()
+    interface.show()
 
 
 if __name__ == "__main__":

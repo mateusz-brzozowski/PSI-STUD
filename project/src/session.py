@@ -46,7 +46,7 @@ class SessionManager:
 
     def handle(self, packet: Packet) -> Packet:
         packet_type = packet.content()[:1]
-        print(f"Packet type: {packet_type.decode()}")
+        print(f"Typ pakietu: {packet_type.decode()}")
         if packet_type == packet_type_client["initial"].encode():
             return self.handle_init()
         elif packet_type == packet_type_client["session_data"].encode():

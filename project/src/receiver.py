@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import socket
 import sys
+from threading import Thread
 from types import TracebackType
 from typing import Dict, List, Optional, Tuple, Type
 
 from database import Database
 from packet import Packet
 from session import SessionManager
+# from interface import Interface
 from utility import unpack
 
 
@@ -61,7 +63,7 @@ class Receiver:
             self._sock.bind((host, port))
         except socket.error as exception:
             raise socket.error(
-                f"Error while binding address to socket: {exception}"
+                f"Wyjątek podczas bindowania adresu do gniazda: {exception}"
             ) from exception
 
     def receive_datagram(
@@ -70,15 +72,17 @@ class Receiver:
         try:
             (data, address) = self._sock.recvfrom(self.BUFSIZE)
 
-            print("Message received")
-            print(f"Size of received data: {len(data)}")
-            print(f"Client address: {address}")
+            print("Otrzymano wiadomość")
+            print(f"Rozmiar otrzymanych danych: {len(data)}")
+            print(f"Adres klienta: {address}")
 
             return address, Packet(data)
         except socket.error as socketError:
-            print(f"Error while receiving data: {socketError}")
+            print(f"Wyjątek podczas otrzymywania danych: {socketError}")
         except UnicodeDecodeError as decodeError:
-            print(f"Error while decoding received data: {decodeError}")
+            print(
+                f"Wyjątek podczas dekodowania otrzymanych danych: {decodeError}"
+            )
 
         return None, None
 
@@ -96,7 +100,7 @@ class Receiver:
         try:
             return manager.handle(datagram)
         except socket.error as exception:
-            print(f"Exception while handling data: {exception}")
+            print(f"Wyjątek podczas obsługi danych: {exception}")
 
         return None
 
@@ -111,16 +115,19 @@ class Receiver:
             msg_type = int(chr(datagram.content()[0]))
             if msg_type == 4:
                 msg_content = unpack(datagram.content()[1:])
-                print(f"Message sent: {msg_type} {msg_content}")
+                print(f"Wiadomość wysłana: {msg_type} {msg_content}")
             else:
-                print(f"Message sent: {datagram.content().decode()}")
+                print(f"Wiadomość wysłana: {datagram.content().decode()}")
         except socket.error as socketError:
-            print(f"Error while sending data: {socketError}")
+            print(f"Wyjątek podczas wysyłania danych: {socketError}")
 
 
 def parse_arguments(args: List[str]) -> Tuple[str, int]:
     if len(args) < 3:
-        print("No host or port defined, using localhost at 8080 as default")
+        print(
+            "Brak zdefiniowanego hosta lub portu, "
+            "jako wartość domyślna użyty zostanie adres 0.0.0.0 na porcie 8080"
+        )
         host = "0.0.0.0"
         port = 8080
     else:
@@ -130,38 +137,27 @@ def parse_arguments(args: List[str]) -> Tuple[str, int]:
     return host, port
 
 
-def main(args: List[str]) -> None:
-    try:
-        (host, port) = parse_arguments(args)
-    except ValueError as exception:
-        print(f"Error while parsing arguments: {exception}")
-        return
-
-    database = Database()
-
-    # from os import fork
-    # if fork():
-    #     interface = Interface(database)
-    #     interface.show()
-    # else:
-    #     with Receiver(database) as r:
-    #         try:
-    #             r.listen(host, port)
-    #         except socket.error as exception:
-    #             print(f"Caught exception: {exception}")
-    #             return
-
-    # not gonna work cause once passed the database is a different object
-    # from multiprocessing import Process
-    # from interface import Interface
-    # interface_proc = Process(target=Interface, args=(database,))
-    # interface_proc.start()
+def thread_test(database: Database, host: str, port: int) -> None:
     with Receiver(database) as r:
         try:
             r.listen(host, port)
         except socket.error as exception:
-            print(f"Caught exception: {exception}")
+            print(f"Złapano wyjątek: {exception}")
             return
+
+
+def main(args: List[str]) -> None:
+    try:
+        (host, port) = parse_arguments(args)
+    except ValueError as exception:
+        print(f"Wyjątek podczas parsowania argumentów: {exception}")
+        return
+
+    database = Database()
+    # interface_inst = Interface(database)
+    thread_test_isnt = Thread(target=thread_test, args=(database, host, port))
+    thread_test_isnt.start()
+    # interface_inst.show()
 
 
 if __name__ == "__main__":
