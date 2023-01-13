@@ -36,7 +36,7 @@ class Sender:
 
     send_buffer: Queue[SenderData]
     semaphore: Semaphore
-    _session_key: int
+    _session_key: Optional[int]
     _public_key: int  # A
     _private_key: int  # a
     _receiver_public_key: int  # B
@@ -137,7 +137,7 @@ class Sender:
             print(f"Wyjątek podczas enkodowania tekstu na bajty: {exception}")
 
     # TODO Rename this here and in `send`
-    def _extracted_from_send_14(self, message):
+    def _extracted_from_send_14(self, message: Packet) -> None:
         msg_type = int(chr(message.content()[0]))
         datagram_num = unpack(message.content()[1:3])
         data_str: str = ""

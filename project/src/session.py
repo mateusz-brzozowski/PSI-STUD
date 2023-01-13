@@ -1,12 +1,12 @@
 import sys
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 
+import diffie_hellman
 from data import Data
 from database import Database
 from packet import Packet, packet_type_client, packet_type_server
-from utility import unpack, pack
-import diffie_hellman
+from utility import pack, unpack
 
 
 class SessionManager:
@@ -33,7 +33,7 @@ class SessionManager:
 
     state: int
     session_id: int
-    session_key: int
+    session_key: Optional[int]
     public_key: int
     private_key: int
     sender_prime_number: int
