@@ -5,9 +5,18 @@ from typing import List, Tuple
 def get_data() -> Tuple[int, int, int, int]:
     prime_number = get_random_prime_number(100, 1000)
     primitive_root = get_primitive_root(prime_number)
-    private_key = get_random_number(100, 1000)
-    public_key: int = (primitive_root**private_key) % prime_number
+    private_key = generate_private_key()
+    public_key: int = calculate_public_key(
+        primitive_root, private_key, prime_number)
     return prime_number, primitive_root, private_key, public_key
+
+
+def generate_private_key() -> int:
+    return get_random_number(100, 1000)
+
+
+def calculate_public_key(primitive_root: int, private_key: int, prime_number: int) -> int:
+    return (primitive_root**private_key) % prime_number
 
 
 def get_random_prime_number(
@@ -65,9 +74,13 @@ def get_session_key(
     return (public_key**private_key) % prime_number
 
 
-def encrypt(message: str, session_key: int) -> str:
-    return "".join(chr(ord(c) + session_key) for c in message)
+def encrypt(message: bytes, session_key: int) -> bytes:
+    return bytes(
+        (message[i] + session_key) % 256 for i in range(len(message))
+    )
 
 
-def decrypt(message: str, session_key: int) -> str:
-    return "".join(chr(ord(c) - session_key) for c in message)
+def decrypt(message: bytes, session_key: int) -> bytes:
+    return bytes(
+        (message[i] - session_key) % 256 for i in range(len(message))
+    )

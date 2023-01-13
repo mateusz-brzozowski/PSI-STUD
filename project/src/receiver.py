@@ -73,6 +73,7 @@ class Receiver:
             (data, address) = self._sock.recvfrom(self.BUFSIZE)
 
             print("Otrzymano wiadomość")
+            print(data)
             print(f"Rozmiar otrzymanych danych: {len(data)}")
             print(f"Adres klienta: {address}")
 
@@ -117,7 +118,7 @@ class Receiver:
                 msg_content = unpack(datagram.content()[1:])
                 print(f"Wiadomość wysłana: {msg_type} {msg_content}")
             else:
-                print(f"Wiadomość wysłana: {datagram.content().decode()}")
+                print(f"Wiadomość wysłana: {datagram.content()[:1].decode()}")
         except socket.error as socketError:
             print(f"Wyjątek podczas wysyłania danych: {socketError}")
 

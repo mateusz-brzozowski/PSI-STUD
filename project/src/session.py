@@ -5,7 +5,8 @@ from typing import List
 from data import Data
 from database import Database
 from packet import Packet, packet_type_client, packet_type_server
-from utility import unpack
+from utility import unpack, pack
+import diffie_hellman
 
 
 class SessionManager:
@@ -32,10 +33,12 @@ class SessionManager:
 
     state: int
     session_id: int
-    session_key: str
-    public_key: str
-    private_key: str
-    sender_public_key: str
+    session_key: int
+    public_key: int
+    private_key: int
+    sender_prime_number: int
+    sender_primitive_root: int
+    sender_public_key: int
     database: Database
 
     def __init__(self, host: str, port: int, database: Database) -> None:
@@ -43,8 +46,13 @@ class SessionManager:
         self.port = port
         self.database = database
         self.state = session_manager_states["INIT"]
+        self.private_key = diffie_hellman.generate_private_key()
+        self.session_key = None
 
     def handle(self, packet: Packet) -> Packet:
+        if self.session_key:
+            packet = Packet(diffie_hellman.decrypt(
+                packet.content(), self.session_key))
         packet_type = packet.content()[:1]
         print(f"Typ pakietu: {packet_type.decode()}")
         if packet_type == packet_type_client["initial"].encode():
@@ -75,13 +83,19 @@ class SessionManager:
         if self.state != session_manager_states["SYMMETRIC_KEY_NEGOTIATION"]:
             self.state = session_manager_states["ERROR"]
             return self.handle_error()
-        # server_public_key_A = packet.content()[3:67]
-        # public_primitive_root_base_g = packet.content()[67:99]
-        # public_prime_modulus_p = packet.content()[99:131]
-        server_public_key_B = bytes(12345)  # TODO: wygenerować klucz publiczny
+        self.sender_public_key = unpack(packet.content()[1:9])
+        self.sender_primitive_root = unpack(packet.content()[9:13])
+        self.sender_prime_number = unpack(packet.content()[13:17])
+        self.public_key = diffie_hellman.calculate_public_key(
+            self.sender_primitive_root, self.private_key, self.sender_prime_number
+        )
+        self.session_key = diffie_hellman.get_session_key(
+            self.sender_public_key, self.private_key, self.sender_prime_number
+        )
         self.state = session_manager_states["SESSION_CONFIRMATION"]
         return Packet(
-            packet_type_server["session_data"].encode() + server_public_key_B
+            packet_type_server["session_data"].encode() +
+            pack(self.public_key, 8)
         )
 
     def handle_declaration(self, packet: Packet) -> Packet:
@@ -89,14 +103,12 @@ class SessionManager:
         Metoda pomocznicza służąca
         potwierdzeniu odebrania informacji o sesji
         """
-        if (
-            self.state != session_manager_states["SYMMETRIC_KEY_NEGOTIATION"]
-        ):  # TODO: change to SESSION_CONFIRMATION
+        if (self.state != session_manager_states["SESSION_CONFIRMATION"]):
             self.state = session_manager_states["ERROR"]
             return self.handle_error()
         stream_count = packet.content().decode()[1]
         self.stream_ids = [
-            str(packet.content()[i : i + 16].decode()).strip()
+            str(packet.content()[i: i + 16].decode()).strip()
             for i in range(2, 2 + int(stream_count) * 16, 16)
         ]
         self.state = session_manager_states["DATA_TRANSFER"]
@@ -114,7 +126,7 @@ class SessionManager:
         data = packet.content()[3:]
         data_entry_len = 9  # 1 + 4 + 4
         data_entries = [
-            data[i : i + data_entry_len]
+            data[i: i + data_entry_len]
             for i in range(0, len(data), data_entry_len)
         ]
         for data_entry in data_entries:

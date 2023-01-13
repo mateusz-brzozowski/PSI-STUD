@@ -11,9 +11,9 @@ from threading import Semaphore, Thread
 from types import TracebackType
 from typing import List, Optional, Tuple, Type
 
-# import diffie_hellman
+import diffie_hellman
 from data import SenderData
-from packet import Packet, packet_type_client
+from packet import Packet, packet_type_client, packet_type_server
 from utility import pack, unpack
 
 
@@ -60,23 +60,14 @@ class Sender:
     }
 
     def __init__(self, address: Tuple[str, int], semaphore: Semaphore) -> None:
-        # (self._prime_number, self._primitive_root, self._private_key,
-        #  self._public_key) = diffie_hellman.get_data()
+        (self._prime_number, self._primitive_root, self._private_key,
+         self._public_key) = diffie_hellman.get_data()
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        # self._receiver_public_key = 1234    # TODO: get from receiver
-        # self._session_key = diffie_hellman.get_session_key(
-        #     self._receiver_public_key, self._private_key, self._prime_number)
         self._send_datagram_number = 0
         self.semaphore = semaphore
         self.send_buffer = Queue()
         self._sock.settimeout(10)
-
-        # encrypted_message = diffie_hellman.encrypt(
-        #     'Hello world!', self._session_key)
-
-        # print(encrypted_message)
-
-        # print(diffie_hellman.decrypt(encrypted_message, self._session_key))
+        self._session_key = None
 
         try:
             self._sock.connect(address)
@@ -86,6 +77,7 @@ class Sender:
             ) from exception
 
         self.init()
+        self.send_session_data()
         self.send_declaration()
 
     def __enter__(self) -> Sender:
@@ -130,7 +122,14 @@ class Sender:
                 print(f"Wiadomość wysłana: {message.content().decode()}")
             else:
                 self._extracted_from_send_14(message)
-            self._sock.send(message.content())
+
+            if self._session_key:
+                encrypted_message = diffie_hellman.encrypt(
+                    message.content(), self._session_key)
+                self._sock.send(encrypted_message)
+            else:
+                self._sock.send(message.content())
+
             self._previous_datagram = message
         except socket.error as exception:
             print(f"Wyjątek podczas wysyłania danych: {exception}")
@@ -143,10 +142,10 @@ class Sender:
         datagram_num = unpack(message.content()[1:3])
         data_str: str = ""
         for i in range(3, len(message.content()), self.DATA_SIZE):
-            data_id = unpack(message.content()[i : i + 1])
-            data_timestamp = unpack(message.content()[i + 1 : i + 5])
+            data_id = unpack(message.content()[i: i + 1])
+            data_timestamp = unpack(message.content()[i + 1: i + 5])
             data_content = unpack(
-                message.content()[i + 5 : i + self.DATA_SIZE]
+                message.content()[i + 5: i + self.DATA_SIZE]
             )
             data_str += f"[{data_id} {data_timestamp} {data_content}]"
         print("Wiadomość wysłana: " f'{msg_type} {datagram_num} {data_str}"')
@@ -155,12 +154,17 @@ class Sender:
     def receive(self) -> bool:
         try:  # TODO: jeśli otrzymam error inny niż malformed data zwracam true
             data = self._sock.recv(512)
-            msg_type = int(chr(data[0]))
-            if msg_type == 4:
+            msg_type = chr(data[0])
+            if msg_type == packet_type_server['receive']:
                 msg_content = unpack(data[1:])
                 print(f"Otrzymana wiadomość: {msg_type} {msg_content}")
+            elif msg_type == packet_type_server["session_data"]:
+                self._receiver_public_key = unpack(data[1:9])
+                self._session_key = diffie_hellman.get_session_key(
+                    self._receiver_public_key, self._private_key, self._prime_number)
             else:
                 print(f"Otrzymana wiadomość: {data.decode()}")
+
             if self._previous_datagram.content()[:1] == data[:1]:
                 return True
             # print(data.decode('ascii'))
@@ -176,16 +180,10 @@ class Sender:
         self.handle_receive()
 
     def send_session_data(self) -> None:
-        self._type = 1
-        print(
-            f"{self._type}:{self._public_key}:"
-            f"{self._primitive_root}:{self._prime_number}"
-        )
-        message = (
-            f"{self._type:03b}{self._public_key:064b}"
-            f"{self._primitive_root:032b}{self._prime_number:032b}"
-        )
-        self.send(Packet(message.encode()))
+        message = packet_type_client["session_data"].encode(
+        ) + pack(self._public_key, 8) + pack(self._primitive_root, 4) + pack(self._prime_number, 4)
+        self.send(Packet(message))
+        self.handle_receive()
 
     def send_declaration(self) -> None:
         message = packet_type_client["declaration"] + str(len(self.threads))
