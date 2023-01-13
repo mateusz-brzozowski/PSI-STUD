@@ -67,7 +67,6 @@ class Sender:
         self.semaphore = semaphore
         self.send_buffer = Queue()
         self._sock.settimeout(10)
-        self._session_key = None
 
         try:
             self._sock.connect(address)
@@ -77,8 +76,6 @@ class Sender:
             ) from exception
 
         self.init()
-        self.send_session_data()
-        self.send_declaration()
 
     def __enter__(self) -> Sender:
         return self
@@ -95,7 +92,8 @@ class Sender:
         while self._work:
             if 3 + self.buffer_length() + self.DATA_SIZE >= self.MAX_DATA_SIZE:
                 self.send_data()
-                self.handle_receive()
+                if not self.handle_receive():
+                    self._work = False
 
     def handle_receive(self) -> bool:
         for _ in range(10):
@@ -103,7 +101,6 @@ class Sender:
                 return True
             else:
                 self.send(self._previous_datagram)
-        self.init()
         return False
 
     def send(self, message: Packet) -> None:
@@ -152,7 +149,7 @@ class Sender:
         print("Wiadomość wysłana (raw): " f'{message.content()[:100]!r}[...]"')
 
     def receive(self) -> bool:
-        try:  # TODO: jeśli otrzymam error inny niż malformed data zwracam true
+        try:
             data = self._sock.recv(512)
             msg_type = chr(data[0])
             if msg_type == packet_type_server['receive']:
@@ -162,13 +159,19 @@ class Sender:
                 self._receiver_public_key = unpack(data[1:9])
                 self._session_key = diffie_hellman.get_session_key(
                     self._receiver_public_key, self._private_key, self._prime_number)
+            elif msg_type == packet_type_server["terminal"]:
+                self.send(Packet(packet_type_client["close"].encode()))
+                self.init()
+            elif msg_type == packet_type_server["close"]:
+                self.send(Packet(packet_type_client["close"].encode()))
+                self._work = False
             else:
                 print(f"Otrzymana wiadomość: {data.decode()}")
 
             if self._previous_datagram.content()[:1] == data[:1]:
+                self._previous_datagram = None
                 return True
-            # print(data.decode('ascii'))
-            # TODO: czyścimy buffer ale tylko w odpowiednim przypadku
+
         except socket.error as exception:
             print(f"Wyjątek podczas otrzymywania danych:: {exception}")
         except UnicodeDecodeError as exception:
@@ -176,14 +179,19 @@ class Sender:
         return False
 
     def init(self):
+        self._previous_datagram = None
+        self._session_key = None
+        self._work = False
         self.send(Packet(packet_type_client["initial"].encode()))
-        self.handle_receive()
+        if self.handle_receive():
+            if self.send_session_data():
+                self.send_declaration()
 
-    def send_session_data(self) -> None:
+    def send_session_data(self) -> bool:
         message = packet_type_client["session_data"].encode(
         ) + pack(self._public_key, 8) + pack(self._primitive_root, 4) + pack(self._prime_number, 4)
         self.send(Packet(message))
-        self.handle_receive()
+        return self.handle_receive()
 
     def send_declaration(self) -> None:
         message = packet_type_client["declaration"] + str(len(self.threads))
@@ -191,13 +199,16 @@ class Sender:
             message += thread.ljust(16)
         self.send(Packet(message.encode()))
         if self.handle_receive():
-            self._work = True
+            self._work = False
 
     def send_data(self) -> None:
+        if self._previous_datagram:
+            self.send(Packet(self._previous_datagram))
+            return
+
         message = packet_type_client["send"].encode() + pack(
             self._send_datagram_number, 2
         )
-        # while not self.send_buffer.empty():
         for _ in range((self.MAX_DATA_SIZE - len(message)) // self.DATA_SIZE):
             data = self.send_buffer.get()
             message += pack(data.data_stream_id, 1)

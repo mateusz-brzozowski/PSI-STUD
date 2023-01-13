@@ -27,5 +27,4 @@ packet_type_server = {
     "receive": "4",
     "terminal": "5",
     "close": "6",
-    "malformed": "7",
 }
