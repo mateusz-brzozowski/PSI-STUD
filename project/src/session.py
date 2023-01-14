@@ -34,6 +34,7 @@ class SessionManager:
     state: int
     session_id: int
     session_key: Optional[int]
+    received_datagram_nr: int
     public_key: int
     private_key: int
     sender_prime_number: int
@@ -48,6 +49,7 @@ class SessionManager:
         self.state = session_manager_states["INIT"]
         self.private_key = diffie_hellman.generate_private_key()
         self.session_key = None
+        self.received_datagram_nr = None
 
     def handle(self, packet: Packet) -> Packet:
         if self.session_key:
