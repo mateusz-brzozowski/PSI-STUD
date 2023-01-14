@@ -85,7 +85,7 @@ class SessionManager:
             return self.handle_error()
         self.sender_public_key = unpack(packet.content()[1:9])
         self.sender_primitive_root = unpack(packet.content()[9:13])
-        self.sender_prime_number = unpack(packet.content()[13:17])
+        self.sender_prime_number = unpack(packet.content()[13:21])
         self.public_key = diffie_hellman.calculate_public_key(
             self.sender_primitive_root, self.private_key, self.sender_prime_number
         )

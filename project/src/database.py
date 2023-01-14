@@ -22,7 +22,7 @@ class Database:
     """
 
     clients: List[str]
-    client_stream: Dict[str, List[str]]  # Mapping is too generic imo
+    client_stream: Dict[str, List[str]]
     data: Dict[str, List[DataEntry]]
 
     def __init__(self) -> None:
@@ -40,8 +40,8 @@ class Database:
             self.client_stream[client].append(data.data_stream_id)
         key = address_id(data.data_stream_id, address[0], address[1])
 
-        # data.content = bytes (as of now), not float
-        new_entry = DataEntry(data.time, unpack(data.content))
+        value = unpack(data.content)
+        new_entry = DataEntry(data.time, value)
 
         if key not in self.data.keys():
             self.data[key] = [new_entry]
@@ -50,7 +50,7 @@ class Database:
 
         print(
             f"Nowe dane datowane na {data.time} pochodzące od {key}: "
-            f"{unpack(data.content)}"
+            f"{value}"
         )
 
     def clients_address(self) -> List[str]:

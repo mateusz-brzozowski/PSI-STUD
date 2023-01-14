@@ -119,6 +119,7 @@ class Sender:
                 print(f"Wiadomość wysłana: {message.content().decode()}")
             else:
                 self._extracted_from_send_14(message)
+            # TODO: if session do sth else
 
             if self._session_key:
                 encrypted_message = diffie_hellman.encrypt(
@@ -158,7 +159,8 @@ class Sender:
             elif msg_type == packet_type_server["session_data"]:
                 self._receiver_public_key = unpack(data[1:9])
                 self._session_key = diffie_hellman.get_session_key(
-                    self._receiver_public_key, self._private_key, self._prime_number)
+                    self._receiver_public_key, self._private_key, self._prime_number
+                )
             elif msg_type == packet_type_server["terminal"]:
                 self.send(Packet(packet_type_client["close"].encode()))
                 self.init()
@@ -189,7 +191,7 @@ class Sender:
 
     def send_session_data(self) -> bool:
         message = packet_type_client["session_data"].encode(
-        ) + pack(self._public_key, 8) + pack(self._primitive_root, 4) + pack(self._prime_number, 4)
+        ) + pack(self._public_key, 8) + pack(self._primitive_root, 4) + pack(self._prime_number, 8)
         self.send(Packet(message))
         return self.handle_receive()
 
