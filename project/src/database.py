@@ -49,7 +49,7 @@ class Database:
             self.data[key].append(new_entry)
 
         print(
-            f"Nowe dane datowane na {data.time} pochodzące od {key}: "
+            f"Database: Nowe dane datowane na {data.time} pochodzące od {key}: "
             f"{value}"
         )
 

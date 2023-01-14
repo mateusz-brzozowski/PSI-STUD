@@ -49,7 +49,7 @@ class SessionManager:
         self.private_key = diffie_hellman.generate_private_key()
         self.session_key = None
 
-    def handle(self, packet: Packet) -> Optional[Packet]:
+    def handle(self, packet: Packet) -> Packet:
         if self.session_key:
             packet.decrypt(self.session_key)
 
@@ -76,11 +76,11 @@ class SessionManager:
 
         return datagram
 
-    def handle_encrypt(self, datagram: Optional[Packet]) -> None:
-        if datagram and self.session_key:
+    def handle_encrypt(self, datagram: Packet) -> None:
+        if self.session_key:
             datagram.encrypt(self.session_key)
 
-    def handle_init(self) -> Optional[Packet]:
+    def handle_init(self) -> Packet:
         """
         Metoda pomocnicza służąca
         potwierdzeniu otwarcia sesji
@@ -154,7 +154,7 @@ class SessionManager:
         # self.state = session_manager_states["SESSION_CLOSING"]
         return Packet(packet_type_server["receive"].encode() + datagram_num)
 
-    def handle_close(self) -> Optional[Packet]:
+    def handle_close(self) -> Packet:
         """
         Metoda pomocnicza służąca
         potwierdzeniu zamknięcia sesji
@@ -163,7 +163,7 @@ class SessionManager:
 
     def simple_ack(
         self, expected_state: str, next_state: str, return_packet_type: str
-    ) -> Optional[Packet]:
+    ) -> Packet:
         if session_manager_states[expected_state] not in [self.state - 1, self.state]:
             self.state = session_manager_states["ERROR"]
             return self.handle_error()
