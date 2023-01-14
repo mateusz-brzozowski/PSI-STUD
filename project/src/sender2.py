@@ -97,6 +97,8 @@ class Sender:
 
     def work(self) -> None:
         while self._work:
+            print(f"Aktualny stan: {self._state}")
+
             if self._state == SENDER_STATES["INIT"]:
                 self.init()
             elif self._state == SENDER_STATES["SYMMETRIC_KEY_NEGOTIATION"]:
@@ -105,7 +107,7 @@ class Sender:
                 self.send_declaration()
             elif self._state == SENDER_STATES["DATA_TRANSFER"]:
                 if self._previous_data_datagram:
-                    self.send_previous()
+                    self.send_previous(self._previous_data_datagram)
                 else:
                     self.send_new_data()
             elif self._state == SENDER_STATES["SESSION_CLOSING"]:
@@ -172,7 +174,8 @@ class Sender:
         received = self.handle_receive()
 
         if received:
-            if received.msg_type() == packet_type_server["initial"]:
+            data = received.content()
+            if len(data) >= 1 and received.msg_type() == packet_type_server["initial"]:
                 self._state = SENDER_STATES["SYMMETRIC_KEY_NEGOTIATION"]
             else:
                 self._state = SENDER_STATES["SESSION_CLOSING"]
@@ -193,7 +196,7 @@ class Sender:
 
         if received:
             data = received.content()
-            if received.msg_type() == packet_type_server["session_data"] and len(data) >= 9:
+            if len(data) >= 9 and received.msg_type() == packet_type_server["session_data"]:
                 self._receiver_public_key = unpack(data[1:9])
                 self._session_key = diffie_hellman.get_session_key(
                     self._receiver_public_key, self._private_key, self._prime_number
@@ -217,18 +220,49 @@ class Sender:
         received = self.handle_receive()
 
         if received:
-            if received.msg_type() == packet_type_server["acknowledge"]:
+            data = received.content()
+            if len(data) >= 1 and received.msg_type() == packet_type_server["acknowledge"]:
                 self._state = SENDER_STATES["DATA_TRANSFER"]
             else:
                 self._state = SENDER_STATES["SESSION_CLOSING"]
         else:
             self._state = SENDER_STATES["SESSION_CLOSING"]
 
-    def send_previous(self) -> None:
-        pass
+    def send_previous(self, previous: Packet) -> None:
+        self.send(previous)
+
+        received = self.handle_receive()
+
+        if received:
+            data = received.content()
+            if len(data) >= 5 and received.msg_type() == packet_type_server["acknowledge"] and unpack(data[1:5]) == self._send_datagram_number:
+                self._send_datagram_number += 1
+                self._previous_data_datagram = None
+                self._state = SENDER_STATES["DATA_TRANSFER"]
+            else:
+                self._state = SENDER_STATES["SESSION_CLOSING"]
+        else:
+            self._state = SENDER_STATES["SESSION_CLOSING"]
 
     def send_new_data(self) -> None:
-        pass
+        message = self.prepare_next_packet()
+
+        self._previous_data_datagram = message
+
+        self.send(message)
+
+        received = self.handle_receive()
+
+        if received:
+            data = received.content()
+            if len(data) >= 3 and received.msg_type() == packet_type_server["acknowledge"] and unpack(data[1:3]) == self._send_datagram_number:
+                self._send_datagram_number += 1
+                self._previous_data_datagram = None
+                self._state = SENDER_STATES["DATA_TRANSFER"]
+            else:
+                self._state = SENDER_STATES["SESSION_CLOSING"]
+        else:
+            self._state = SENDER_STATES["SESSION_CLOSING"]
 
     def send_close_session(self) -> None:
         pass
