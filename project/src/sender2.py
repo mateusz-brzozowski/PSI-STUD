@@ -58,7 +58,7 @@ class Sender:
     _send_datagram_number: int
     _work: bool
     _previous_datagram: Packet
-    _previous_data_datagram: Optional[Packet]
+    _previous_data_datagram: Optional[bytes]
     _stream_ids: List[str] = []
     DATA_SIZE = 9
     MAX_DATA_SIZE = 512
@@ -79,6 +79,7 @@ class Sender:
         self._stream_ids = stream_ids
 
         try:
+            self._sock.bind(("127.0.0.1", 8081))
             self._sock.connect(address)
         except socket.error as exception:
             raise socket.error(
@@ -98,7 +99,7 @@ class Sender:
 
     def work(self) -> None:
         while self._work:
-            print(f"Aktualny stan: {self._state}")
+            print(f"Sender: Aktualny stan: {self._state}")
 
             if self._state == SENDER_STATES["INIT"]:
                 self.init()
@@ -108,7 +109,11 @@ class Sender:
                 self.send_declaration()
             elif self._state == SENDER_STATES["DATA_TRANSFER"]:
                 if self._previous_data_datagram:
-                    self.send_data(self._previous_data_datagram)
+                    self.send_data(Packet(
+                        packet_type_client["send"].encode()
+                        + pack(self._send_datagram_number, 2)
+                        + self._previous_data_datagram
+                    ))
                 else:
                     self.send_new_data()
             elif self._state == SENDER_STATES["SESSION_CLOSING"]:
@@ -232,7 +237,7 @@ class Sender:
 
     def send_new_data(self) -> None:
         message = self.prepare_next_packet()
-        self._previous_data_datagram = Packet(message.content()[:])
+        self._previous_data_datagram = message.content()[3:]
         self.send_data(message)
 
     def send_data(self, message: Packet) -> None:
