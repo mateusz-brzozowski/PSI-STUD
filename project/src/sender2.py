@@ -58,12 +58,12 @@ class Sender:
     _send_datagram_number: int
     _work: bool
     _previous_datagram: Packet
-    _previous_data_datagram: Packet
+    _previous_data_datagram: Optional[Packet]
     _stream_ids: List[str] = []
     DATA_SIZE = 9
     MAX_DATA_SIZE = 512
 
-    def __init__(self, address: Tuple[str, int], write_semaphore: Semaphore) -> None:
+    def __init__(self, address: Tuple[str, int], write_semaphore: Semaphore, stream_ids: List[str]) -> None:
         (self._prime_number, self._primitive_root, self._private_key,
          self._public_key) = diffie_hellman.get_data()
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -74,6 +74,8 @@ class Sender:
         self._sock.settimeout(10)
         self._state = SENDER_STATES["INIT"]
         self._work = True
+        self._previous_data_datagram = None
+        self._stream_ids = stream_ids
 
         try:
             self._sock.connect(address)
@@ -203,7 +205,24 @@ class Sender:
             self._state = SENDER_STATES["SESSION_CLOSING"]
 
     def send_declaration(self) -> None:
-        pass
+        content = packet_type_client["declaration"] \
+            + str(len(self._stream_ids))
+
+        for stream in self._stream_ids:
+            content += stream.ljust(16)
+
+        message = Packet(content.encode())
+        self.send(message)
+
+        received = self.handle_receive()
+
+        if received:
+            if received.msg_type() == packet_type_server["acknowledge"]:
+                self._state = SENDER_STATES["DATA_TRANSFER"]
+            else:
+                self._state = SENDER_STATES["SESSION_CLOSING"]
+        else:
+            self._state = SENDER_STATES["SESSION_CLOSING"]
 
     def send_previous(self) -> None:
         pass
@@ -216,9 +235,6 @@ class Sender:
 
     def save_data_to_buffer(self, data: SenderData2) -> None:
         self.write_semaphore.acquire()
-
-        if data.data_stream_id not in self._stream_ids:
-            self._stream_ids.append(data.data_stream_id)
 
         self.send_buffer.put(data)
 
@@ -313,7 +329,7 @@ def main(args: List[str]) -> None:
     threads: List[Thread] = []
     write_semaphore = Semaphore(number_of_threads)
 
-    with Sender((host, port), write_semaphore) as s:
+    with Sender((host, port), write_semaphore, THREAD_IDS) as s:
         threads.extend(
             Thread(target=thread_generator, args=(THREAD_IDS[thread_num], s))
             for thread_num in range(number_of_threads)
