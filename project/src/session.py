@@ -178,27 +178,7 @@ session_manager_states = {
 
 
 def main(args: List[str]) -> None:
-    db = Database()
-    session_manager = SessionManager("localhost", 8080, db)
-    session_manager.handle(Packet(b"000"))  # type
-
-    # needs need synthetic data
-
-    # session_manager.handle(
-    #     Packet(
-    #         b"001"  # type
-    #         + b"1010010101100010"
-    #         + b"1010010101100010"
-    #         + b"1010010101100010"
-    #         + b"1010010101100010"  # server A's public key
-    #     )
-    # )
-    # session_manager.handle(Packet(b"010"))  # type
-    # session_manager.handle(
-    #     Packet(b"011" + b"1010010101100010")  # type  # datagram num
-    # )
-    # session_manager.handle(Packet(b"100"))  # type
-    # session_manager.handle(Packet(b"101"))  # type
+    pass
 
 
 if __name__ == "__main__":

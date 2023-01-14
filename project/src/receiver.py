@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import socket
 import sys
+from importlib import util
 from threading import Thread
 from types import TracebackType
 from typing import Dict, List, Optional, Tuple, Type
@@ -9,8 +10,11 @@ from typing import Dict, List, Optional, Tuple, Type
 from database import Database
 from packet import Packet
 from session import SessionManager
-# from interface import Interface
 from utility import unpack
+
+matplotlib_spec = util.find_spec("matplotlib")
+if matplotlib_spec is not None:
+    from interface import Interface
 
 
 class Receiver:
@@ -155,10 +159,14 @@ def main(args: List[str]) -> None:
         return
 
     database = Database()
-    # interface_inst = Interface(database)
     thread_test_isnt = Thread(target=thread_test, args=(database, host, port))
     thread_test_isnt.start()
-    # interface_inst.show()
+    if matplotlib_spec:
+        interface_inst = Interface(database)
+        interface_inst.show()
+    else:
+        print("Nie można wyświetlić interfejsu graficznego "
+              "- brak biblioteki matplotlib")
 
 
 if __name__ == "__main__":
