@@ -13,6 +13,9 @@ class Packet:
     def size(self) -> int:
         return len(self._content)
 
+    def msg_type(self) -> str:
+        return self._content[:1].decode()
+
     def encrypt(self, session_key: int) -> None:
         print(f"Packet: Wiadomość nie zakodowana: {self._content}")
         self._content = diffie_hellman.encrypt(self._content, session_key)

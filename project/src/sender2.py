@@ -58,6 +58,7 @@ class Sender:
     _send_datagram_number: int
     _work: bool
     _previous_datagram: Packet
+    _previous_data_datagram: Packet
     _stream_ids: List[str] = []
     DATA_SIZE = 9
     MAX_DATA_SIZE = 512
@@ -72,6 +73,7 @@ class Sender:
         self.send_buffer = Queue()
         self._sock.settimeout(10)
         self._state = SENDER_STATES["INIT"]
+        self._work = True
 
         try:
             self._sock.connect(address)
@@ -100,7 +102,7 @@ class Sender:
             elif self._state == SENDER_STATES["SESSION_CONFIRMATION"]:
                 self.send_declaration()
             elif self._state == SENDER_STATES["DATA_TRANSFER"]:
-                if self._previous_datagram:
+                if self._previous_data_datagram:
                     self.send_previous()
                 else:
                     self.send_new_data()
@@ -111,35 +113,94 @@ class Sender:
         self._work = not self._work
 
     def send(self, message: Packet) -> None:
-        pass
+        if self._session_key:
+            message.encrypt(self._session_key)
 
-    def handle_receive(self, expected_type: str) -> bool:
-        return True
+        self._previous_datagram = message
+        try:
+            self._sock.send(message.content())
+            print(f"Sender: Wysłana wiadomość: {message.content()}")
+        except socket.error as exception:
+            print(f"Sender: Wyjątek podczas wysyłania danych: {exception}")
+        except UnicodeEncodeError as exception:
+            print(
+                f"Sender: Wyjątek podczas enkodowania tekstu na bajty: {exception}")
 
-    def receive(self) -> bool:
-        pass
+    def receive(self) -> Optional[Packet]:
+        try:
+            data = self._sock.recv(512)
+
+            print(f"Sender: Otrzymana wiadomość: {data}")
+
+            datagram = Packet(data)
+
+            if self._session_key:
+                datagram.decrypt(self._session_key)
+
+            return datagram
+
+        except socket.error as exception:
+            print(f"Sender: Wyjątek podczas otrzymywania danych:: {exception}")
+        except UnicodeDecodeError as exception:
+            print(
+                f"Sender: Wyjątek podczas dekodowania tekstu na bajty: {exception}")
+
+        return None
+
+    def handle_receive(self) -> Optional[Packet]:
+        for _ in range(10):
+            datagram = self.receive()
+
+            if datagram:
+                return datagram
+            else:
+                self.send(self._previous_datagram)
+
+        self._state = SENDER_STATES["SESSION_CLOSING"]
+        return None
 
     def init(self):
         self._session_key = None
         self._send_datagram_number = 0
 
-        self.send(Packet(packet_type_client["initial"].encode()))
+        message = Packet(packet_type_client["initial"].encode())
 
-        if self.handle_receive(packet_type_server["initial"]):
-            self._state = SENDER_STATES["SYMMETRIC_KEY_NEGOTIATION"]
+        self.send(message)
+
+        received = self.handle_receive()
+
+        if received:
+            if received.msg_type() == packet_type_server["initial"]:
+                self._state = SENDER_STATES["SYMMETRIC_KEY_NEGOTIATION"]
+            else:
+                self._state = SENDER_STATES["SESSION_CLOSING"]
         else:
-            self._state = SENDER_STATES["SESSION_CLOSING"]
+            self._work = False
 
     def send_session_data(self) -> None:
-        message = packet_type_client["session_data"].encode() \
+        content = packet_type_client["session_data"].encode() \
             + pack(self._public_key, 8) \
             + pack(self._primitive_root, 4) \
             + pack(self._prime_number, 8)
 
-        self.send(Packet(message))
+        message = Packet(content)
 
-        if self.handle_receive(packet_type_server[""]):
-            self._state = SENDER_STATES["SESSION_CONFIRMATION"]
+        self.send(message)
+
+        received = self.handle_receive()
+
+        if received:
+            data = received.content()
+            if received.msg_type() == packet_type_server["session_data"] and len(data) >= 9:
+                self._receiver_public_key = unpack(data[1:9])
+                self._session_key = diffie_hellman.get_session_key(
+                    self._receiver_public_key, self._private_key, self._prime_number
+                )
+                self._state = SENDER_STATES["SESSION_CONFIRMATION"]
+            else:
+                self._state = SENDER_STATES["SESSION_CLOSING"]
+        else:
+            self._state = SENDER_STATES["SESSION_CLOSING"]
 
     def send_declaration(self) -> None:
         pass
