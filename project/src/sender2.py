@@ -70,6 +70,7 @@ class Sender:
         self._send_datagram_number = 0
         self.write_semaphore = write_semaphore
         self._read_semaphore = Semaphore(1)
+        self._read_semaphore.acquire()
         self.send_buffer = Queue()
         self._sock.settimeout(10)
         self._state = SENDER_STATES["INIT"]
@@ -235,7 +236,7 @@ class Sender:
 
         if received:
             data = received.content()
-            if len(data) >= 5 and received.msg_type() == packet_type_server["acknowledge"] and unpack(data[1:5]) == self._send_datagram_number:
+            if len(data) >= 3 and received.msg_type() == packet_type_server["acknowledge"] and unpack(data[1:3]) == self._send_datagram_number:
                 self._send_datagram_number += 1
                 self._previous_data_datagram = None
                 self._state = SENDER_STATES["DATA_TRANSFER"]
@@ -265,7 +266,20 @@ class Sender:
             self._state = SENDER_STATES["SESSION_CLOSING"]
 
     def send_close_session(self) -> None:
-        pass
+        content = packet_type_client["close"].encode()
+        message = Packet(content)
+        self.send(message)
+
+        received = self.handle_receive()
+
+        if received:
+            data = received.content()
+            if len(data) >= 1 and received.msg_type() == packet_type_server["close"]:
+                self._state = SENDER_STATES["INIT"]
+            else:
+                self._state = SENDER_STATES["INIT"]
+        else:
+            self._state = SENDER_STATES["INIT"]
 
     def save_data_to_buffer(self, data: SenderData2) -> None:
         self.write_semaphore.acquire()
