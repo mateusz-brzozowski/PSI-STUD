@@ -72,7 +72,7 @@ class Sender:
             self._sock.connect(address)
         except socket.error as exception:
             raise socket.error(
-                f"Wyjątek podczas nawiązywania połączenia: {exception}"
+                f"Sender: Wyjątek podczas nawiązywania połączenia: {exception}"
             ) from exception
 
         self.init()
@@ -113,10 +113,11 @@ class Sender:
                     f"[{msg[i:i + 16]}]" for i in range(2, len(msg), 16)
                 )
                 print(
-                    f'Wiadomość wysłana: "{msg_type} {msg_sen_num} {data_str}"'
+                    f'Sender: Wiadomość wysłana: "{msg_type} {msg_sen_num} {data_str}"'
                 )
             elif chr(message.content()[0]) == packet_type_client["initial"]:
-                print(f"Wiadomość wysłana: {message.content().decode()}")
+                print(
+                    f"Sender: Wiadomość wysłana: {message.content().decode()}")
             else:
                 self._extracted_from_send_14(message)
             # TODO: if session do sth else
@@ -130,9 +131,10 @@ class Sender:
 
             self._previous_datagram = message
         except socket.error as exception:
-            print(f"Wyjątek podczas wysyłania danych: {exception}")
+            print(f"Sender: Wyjątek podczas wysyłania danych: {exception}")
         except UnicodeEncodeError as exception:
-            print(f"Wyjątek podczas enkodowania tekstu na bajty: {exception}")
+            print(
+                f"Sender: Wyjątek podczas enkodowania tekstu na bajty: {exception}")
 
     # TODO Rename this here and in `send`
     def _extracted_from_send_14(self, message: Packet) -> None:
@@ -146,16 +148,23 @@ class Sender:
                 message.content()[i + 5: i + self.DATA_SIZE]
             )
             data_str += f"[{data_id} {data_timestamp} {data_content}]"
-        print("Wiadomość wysłana: " f'{msg_type} {datagram_num} {data_str}"')
-        print("Wiadomość wysłana (raw): " f'{message.content()[:100]!r}[...]"')
+        print(
+            "Sender: Wiadomość wysłana: " f'{msg_type} {datagram_num} {data_str}"')
+        print(
+            "Sender: Wiadomość wysłana (raw): " f'{message.content()[:100]!r}[...]"')
 
     def receive(self) -> bool:
         try:
             data = self._sock.recv(512)
+            datagram = Packet(data)
+            if self._session_key:
+                datagram.decrypt(self._session_key)
+                data = datagram.content()
+
             msg_type = chr(data[0])
             if msg_type == packet_type_server['receive']:
                 msg_content = unpack(data[1:])
-                print(f"Otrzymana wiadomość: {msg_type} {msg_content}")
+                print(f"Sender: Otrzymana wiadomość: {msg_type} {msg_content}")
             elif msg_type == packet_type_server["session_data"]:
                 self._receiver_public_key = unpack(data[1:9])
                 self._session_key = diffie_hellman.get_session_key(
@@ -168,16 +177,17 @@ class Sender:
                 self.send(Packet(packet_type_client["close"].encode()))
                 self._work = False
             else:
-                print(f"Otrzymana wiadomość: {data.decode()}")
+                print(f"Sender: Otrzymana wiadomość: {data.decode()}")
 
             if self._previous_datagram.content()[:1] == data[:1]:
                 self._previous_datagram = None
                 return True
 
         except socket.error as exception:
-            print(f"Wyjątek podczas otrzymywania danych:: {exception}")
+            print(f"Sender: Wyjątek podczas otrzymywania danych:: {exception}")
         except UnicodeDecodeError as exception:
-            print(f"Wyjątek podczas dekodowania tekstu na bajty: {exception}")
+            print(
+                f"Sender: Wyjątek podczas dekodowania tekstu na bajty: {exception}")
         return False
 
     def init(self):
@@ -217,7 +227,7 @@ class Sender:
             message += pack(int(data.time.timestamp()), 4)
             message += data.content
 
-        print(f"Rozmiar pakietu: {len(message)}")
+        print(f"Sender: Rozmiar pakietu: {len(message)}")
         self.send(Packet(message))
         self._send_datagram_number += 1
 
@@ -289,7 +299,7 @@ def main(args: List[str]) -> None:
         try:
             s.work()
         except socket.error as exception:
-            print(f"Złapano wyjątek: {exception}")
+            print(f"Sender: Złapano wyjątek: {exception}")
 
     print("Klient zakończył swoje działanie")
 

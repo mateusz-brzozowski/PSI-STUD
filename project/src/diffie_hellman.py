@@ -16,19 +16,19 @@ def get_data() -> Tuple[int, int, int, int]:
 
 def get_prime_number() -> int:
     prime_number = number.getPrime(64)  # type: ignore
-    print(f"Liczba pierwsza: {prime_number}")
+    print(f"Diffie-Hellman: Liczba pierwsza: {prime_number}")
     return prime_number
 
 
 def generate_private_key() -> int:
     private_key = number.getRandomInteger(64)  # type: ignore
-    print(f"Klucz prywatny: {private_key}")
+    print(f"Diffie-Hellman: Klucz prywatny: {private_key}")
     return private_key
 
 
 def calculate_public_key(primitive_root: int, private_key: int, prime_number: int) -> int:
     public_key = modular_pow(primitive_root, private_key, prime_number)
-    print(f"Klucz publiczny: {public_key}")
+    print(f"Diffie-Hellman: Klucz publiczny: {public_key}")
     return public_key
 
 
@@ -50,7 +50,7 @@ def get_primitive_root(prime_number: int) -> int:
     while True:
         i = random.randint(1, max_primitive_root)
         if gcd(i, prime_number - 1) == 1:
-            print(f"Pierwiastek pierwotny: {i}")
+            print(f"Diffie-Hellman: Pierwiastek pierwotny: {i}")
             return i
 
 
@@ -58,17 +58,19 @@ def get_session_key(
     public_key: int, private_key: int, prime_number: int
 ) -> int:
     session_key = modular_pow(public_key, private_key, prime_number)
-    print(f"Ustalony klucz sesyjny: {session_key}")
+    print(f"Diffie-Hellman: Ustalony klucz sesyjny: {session_key}")
     return session_key
 
 
 def encrypt(message: bytes, session_key: int) -> bytes:
     return bytes(
         (message[i] + session_key) % 256 for i in range(len(message))
+        # (message[i] + (session_key >> (i % 24))) % 256 for i in range(len(message))
     )
 
 
 def decrypt(message: bytes, session_key: int) -> bytes:
     return bytes(
         (message[i] - session_key) % 256 for i in range(len(message))
+        # (message[i] - (session_key >> (i % 24))) % 256 for i in range(len(message))
     )

@@ -49,26 +49,38 @@ class SessionManager:
         self.private_key = diffie_hellman.generate_private_key()
         self.session_key = None
 
-    def handle(self, packet: Packet) -> Packet:
+    def handle(self, packet: Packet) -> Optional[Packet]:
         if self.session_key:
-            packet = Packet(diffie_hellman.decrypt(
-                packet.content(), self.session_key))
-        packet_type = packet.content()[:1]
-        print(f"Typ pakietu: {packet_type.decode()}")
-        if packet_type == packet_type_client["initial"].encode():
-            return self.handle_init()
-        elif packet_type == packet_type_client["session_data"].encode():
-            return self.handle_session_data(packet)
-        elif packet_type == packet_type_client["declaration"].encode():
-            return self.handle_declaration(packet)
-        elif packet_type == packet_type_client["send"].encode():
-            return self.handle_send(packet)
-        elif packet_type == packet_type_client["close"].encode():
-            return self.handle_close()
-        else:
-            return self.handle_error()
+            packet.decrypt(self.session_key)
 
-    def handle_init(self) -> Packet:
+        packet_type = packet.content()[:1].decode()
+
+        print(f"SessionManager: Typ pakietu: {packet_type}")
+
+        if packet_type == packet_type_client["initial"]:
+            datagram = self.handle_init()
+        elif packet_type == packet_type_client["session_data"]:
+            datagram = self.handle_session_data(packet)
+        elif packet_type == packet_type_client["declaration"]:
+            datagram = self.handle_declaration(packet)
+            self.handle_encrypt(datagram)
+        elif packet_type == packet_type_client["send"]:
+            datagram = self.handle_send(packet)
+            self.handle_encrypt(datagram)
+        elif packet_type == packet_type_client["close"]:
+            datagram = self.handle_close()
+            self.handle_encrypt(datagram)
+        else:
+            datagram = self.handle_error()
+            self.handle_encrypt(datagram)
+
+        return datagram
+
+    def handle_encrypt(self, datagram: Optional[Packet]) -> None:
+        if datagram and self.session_key:
+            datagram.encrypt(self.session_key)
+
+    def handle_init(self) -> Optional[Packet]:
         """
         Metoda pomocnicza służąca
         potwierdzeniu otwarcia sesji
@@ -142,7 +154,7 @@ class SessionManager:
         # self.state = session_manager_states["SESSION_CLOSING"]
         return Packet(packet_type_server["receive"].encode() + datagram_num)
 
-    def handle_close(self) -> Packet:
+    def handle_close(self) -> Optional[Packet]:
         """
         Metoda pomocnicza służąca
         potwierdzeniu zamknięcia sesji
@@ -151,8 +163,8 @@ class SessionManager:
 
     def simple_ack(
         self, expected_state: str, next_state: str, return_packet_type: str
-    ) -> Packet:
-        if self.state != session_manager_states[expected_state]:
+    ) -> Optional[Packet]:
+        if session_manager_states[expected_state] not in [self.state - 1, self.state]:
             self.state = session_manager_states["ERROR"]
             return self.handle_error()
         self.state = session_manager_states[next_state]

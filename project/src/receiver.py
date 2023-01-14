@@ -10,7 +10,6 @@ from typing import Dict, List, Optional, Tuple, Type
 from database import Database
 from packet import Packet
 from session import SessionManager
-from utility import unpack
 
 matplotlib_spec = util.find_spec("matplotlib")
 if matplotlib_spec is not None:
@@ -67,7 +66,7 @@ class Receiver:
             self._sock.bind((host, port))
         except socket.error as exception:
             raise socket.error(
-                f"Wyjątek podczas bindowania adresu do gniazda: {exception}"
+                f"Receiver: Wyjątek podczas bindowania adresu do gniazda: {exception}"
             ) from exception
 
     def receive_datagram(
@@ -76,17 +75,17 @@ class Receiver:
         try:
             (data, address) = self._sock.recvfrom(self.BUFSIZE)
 
-            print("Otrzymano wiadomość")
-            print(data)
-            print(f"Rozmiar otrzymanych danych: {len(data)}")
-            print(f"Adres klienta: {address}")
+            print(f"Receiver: Otrzymano wiadomość: {data}")
+            print(f"Receiver: Rozmiar otrzymanych danych: {len(data)}")
+            print(f"Receiver: Adres klienta: {address}")
 
             return address, Packet(data)
         except socket.error as socketError:
-            print(f"Wyjątek podczas otrzymywania danych: {socketError}")
+            print(
+                f"Receiver: Wyjątek podczas otrzymywania danych: {socketError}")
         except UnicodeDecodeError as decodeError:
             print(
-                f"Wyjątek podczas dekodowania otrzymanych danych: {decodeError}"
+                f"Receiver: Wyjątek podczas dekodowania otrzymanych danych: {decodeError}"
             )
 
         return None, None
@@ -105,7 +104,7 @@ class Receiver:
         try:
             return manager.handle(datagram)
         except socket.error as exception:
-            print(f"Wyjątek podczas obsługi danych: {exception}")
+            print(f"Receiver: Wyjątek podczas obsługi danych: {exception}")
 
         return None
 
@@ -117,14 +116,9 @@ class Receiver:
             # ignore case not enough bytes sent -> due to invalid packet
             # received client will resend his packet and then the server
             # will respond again
-            msg_type = int(chr(datagram.content()[0]))
-            if msg_type == 4:
-                msg_content = unpack(datagram.content()[1:])
-                print(f"Wiadomość wysłana: {msg_type} {msg_content}")
-            else:
-                print(f"Wiadomość wysłana: {datagram.content()[:1].decode()}")
+            print(f"Receiver: Wiadomość wysłana: {datagram.content()}")
         except socket.error as socketError:
-            print(f"Wyjątek podczas wysyłania danych: {socketError}")
+            print(f"Receiver: Wyjątek podczas wysyłania danych: {socketError}")
 
 
 def parse_arguments(args: List[str]) -> Tuple[str, int]:
@@ -147,7 +141,7 @@ def thread_test(database: Database, host: str, port: int) -> None:
         try:
             r.listen(host, port)
         except socket.error as exception:
-            print(f"Złapano wyjątek: {exception}")
+            print(f"Receiver: Złapano wyjątek: {exception}")
             return
 
 

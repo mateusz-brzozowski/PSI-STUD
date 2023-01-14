@@ -1,3 +1,6 @@
+import diffie_hellman
+
+
 class Packet:
     _content: bytes
 
@@ -9,6 +12,16 @@ class Packet:
 
     def size(self) -> int:
         return len(self._content)
+
+    def encrypt(self, session_key: int) -> None:
+        print(f"Packet: Wiadomość nie zakodowana: {self._content}")
+        self._content = diffie_hellman.encrypt(self._content, session_key)
+        print(f"Packet: Wiadomość zakodowana: {self._content}")
+
+    def decrypt(self, session_key: int) -> None:
+        print(f"Packet: Zakodowana wiadomość: {self._content}")
+        self._content = diffie_hellman.decrypt(self._content, session_key)
+        print(f"Packet: Odkodowana wiadomość: {self._content}")
 
 
 packet_type_client = {
