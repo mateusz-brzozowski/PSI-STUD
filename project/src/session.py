@@ -55,7 +55,12 @@ class SessionManager:
         if self.session_key:
             packet.decrypt(self.session_key)
 
-        packet_type = packet.content()[:1].decode()
+        try:
+            packet_type = packet.content()[:1].decode()
+        except UnicodeDecodeError:
+            datagram = self.handle_error()
+            print("Niepoprawnie zakodowane dane lub brak kodowania.")
+            return datagram
 
         print(f"SessionManager: Typ pakietu: {packet_type}")
 
@@ -143,16 +148,18 @@ class SessionManager:
             data[i: i + data_entry_len]
             for i in range(0, len(data), data_entry_len)
         ]
-        for data_entry in data_entries:
-            stream_id = data_entry[0]
-            timestamp = unpack(data_entry[1:5])
-            data = data_entry[5:]
-            new_data_entry = Data(
-                self.stream_ids[stream_id],
-                datetime.fromtimestamp(timestamp),
-                data,
-            )
-            self.database.insert(new_data_entry, (self.host, self.port))
+        if self.received_datagram_nr != datagram_num:
+            for data_entry in data_entries:
+                stream_id = data_entry[0]
+                timestamp = unpack(data_entry[1:5])
+                data = data_entry[5:]
+                new_data_entry = Data(
+                    self.stream_ids[stream_id],
+                    datetime.fromtimestamp(timestamp),
+                    data,
+                )
+                self.database.insert(new_data_entry, (self.host, self.port))
+            self.received_datagram_nr = datagram_num
         # self.state = session_manager_states["SESSION_CLOSING"]
         return Packet(packet_type_server["receive"].encode() + datagram_num)
 
