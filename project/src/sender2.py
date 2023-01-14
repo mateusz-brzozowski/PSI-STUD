@@ -108,7 +108,7 @@ class Sender:
                 self.send_declaration()
             elif self._state == SENDER_STATES["DATA_TRANSFER"]:
                 if self._previous_data_datagram:
-                    self.send_previous(self._previous_data_datagram)
+                    self.send_data(self._previous_data_datagram)
                 else:
                     self.send_new_data()
             elif self._state == SENDER_STATES["SESSION_CLOSING"]:
@@ -118,10 +118,11 @@ class Sender:
         self._work = not self._work
 
     def send(self, message: Packet) -> None:
+        self._previous_datagram = Packet(message.content()[:])
+
         if self._session_key:
             message.encrypt(self._session_key)
 
-        self._previous_datagram = message
         try:
             self._sock.send(message.content())
             print(f"Sender: Wysłana wiadomość: {message.content()}")
@@ -229,36 +230,29 @@ class Sender:
         else:
             self._state = SENDER_STATES["SESSION_CLOSING"]
 
-    def send_previous(self, previous: Packet) -> None:
-        self.send(previous)
-
-        received = self.handle_receive()
-
-        if received:
-            data = received.content()
-            if len(data) >= 3 and received.msg_type() == packet_type_server["acknowledge"] and unpack(data[1:3]) == self._send_datagram_number:
-                self._send_datagram_number += 1
-                self._previous_data_datagram = None
-                self._state = SENDER_STATES["DATA_TRANSFER"]
-            else:
-                self._state = SENDER_STATES["SESSION_CLOSING"]
-        else:
-            self._state = SENDER_STATES["SESSION_CLOSING"]
-
     def send_new_data(self) -> None:
         message = self.prepare_next_packet()
+        self._previous_data_datagram = Packet(message.content()[:])
+        self.send_data(message)
 
-        self._previous_data_datagram = message
-
+    def send_data(self, message: Packet) -> None:
         self.send(message)
 
         received = self.handle_receive()
 
         if received:
             data = received.content()
-            if len(data) >= 3 and received.msg_type() == packet_type_server["acknowledge"] and unpack(data[1:3]) == self._send_datagram_number:
-                self._send_datagram_number += 1
+
+            number = -1
+            if len(data) >= 3:
+                number = unpack(data[1:3])
+
+            if received.msg_type() == packet_type_server["receive"] and self._send_datagram_number == number:
+                self._send_datagram_number = \
+                    (self._send_datagram_number + 1) % 2 ** 16
                 self._previous_data_datagram = None
+                self._state = SENDER_STATES["DATA_TRANSFER"]
+            elif received.msg_type() == packet_type_server["receive"]:
                 self._state = SENDER_STATES["DATA_TRANSFER"]
             else:
                 self._state = SENDER_STATES["SESSION_CLOSING"]
@@ -296,22 +290,22 @@ class Sender:
             timeout=SEND_DATA_MAX_INTERVAL
         )
 
-        message = packet_type_client["send"].encode() \
+        content = packet_type_client["send"].encode() \
             + pack(self._send_datagram_number, 2)
 
-        for _ in range((self.MAX_DATA_SIZE - len(message)) // self.DATA_SIZE):
+        for _ in range((self.MAX_DATA_SIZE - len(content)) // self.DATA_SIZE):
             if self.send_buffer.empty():
                 break
 
             data = self.send_buffer.get()
-            message += pack(self._stream_ids.index(data.data_stream_id), 1)
-            message += pack(int(data.time.timestamp()), 4)
-            message += data.content
+            content += pack(self._stream_ids.index(data.data_stream_id), 1)
+            content += pack(int(data.time.timestamp()), 4)
+            content += data.content
 
         if self.is_buffer_ready_to_read():
             self._read_semaphore.release()
 
-        return Packet(message)
+        return Packet(content)
 
     def is_buffer_ready_to_read(self) -> bool:
         return self.send_buffer.qsize() * self.DATA_SIZE + 3 > self.MAX_DATA_SIZE

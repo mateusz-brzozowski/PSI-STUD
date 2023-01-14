@@ -34,7 +34,7 @@ class SessionManager:
     state: int
     session_id: int
     session_key: Optional[int]
-    received_datagram_nr: int
+    received_datagram_nr: Optional[int]
     public_key: int
     private_key: int
     sender_prime_number: int
@@ -51,16 +51,14 @@ class SessionManager:
         self.session_key = None
         self.received_datagram_nr = None
 
-    def handle(self, packet: Packet) -> Packet:
+    def handle(self, packet: Packet) -> Optional[Packet]:
         if self.session_key:
             packet.decrypt(self.session_key)
 
-        try:
-            packet_type = packet.content()[:1].decode()
-        except UnicodeDecodeError:
-            datagram = self.handle_error()
-            print("Niepoprawnie zakodowane dane lub brak kodowania.")
-            return datagram
+        if len(packet.content()) < 1:
+            return None
+
+        packet_type = packet.msg_type()
 
         print(f"SessionManager: Typ pakietu: {packet_type}")
 
@@ -92,26 +90,38 @@ class SessionManager:
         Metoda pomocnicza służąca
         potwierdzeniu otwarcia sesji
         """
-        return self.simple_ack("INIT", "SYMMETRIC_KEY_NEGOTIATION", "initial")
+        if self.state not in [session_manager_states["INIT"], session_manager_states["SYMMETRIC_KEY_NEGOTIATION"]]:
+            return self.handle_error()
+
+        self.session_key = None
+        self.state = session_manager_states["SYMMETRIC_KEY_NEGOTIATION"]
+        return Packet(packet_type_server["initial"].encode())
 
     def handle_session_data(self, packet: Packet) -> Packet:
         """
         Metoda pomocnicza służąca
         uzgodnieniu klucza symetrycznego
         """
-        if self.state != session_manager_states["SYMMETRIC_KEY_NEGOTIATION"]:
-            self.state = session_manager_states["ERROR"]
+
+        if self.state not in [
+            session_manager_states["SYMMETRIC_KEY_NEGOTIATION"],
+            session_manager_states["SESSION_CONFIRMATION"]
+        ] or len(packet.content()) < 21:
             return self.handle_error()
+
         self.sender_public_key = unpack(packet.content()[1:9])
         self.sender_primitive_root = unpack(packet.content()[9:13])
         self.sender_prime_number = unpack(packet.content()[13:21])
+
         self.public_key = diffie_hellman.calculate_public_key(
             self.sender_primitive_root, self.private_key, self.sender_prime_number
         )
         self.session_key = diffie_hellman.get_session_key(
             self.sender_public_key, self.private_key, self.sender_prime_number
         )
+
         self.state = session_manager_states["SESSION_CONFIRMATION"]
+
         return Packet(
             packet_type_server["session_data"].encode() +
             pack(self.public_key, 8)
@@ -122,10 +132,15 @@ class SessionManager:
         Metoda pomocznicza służąca
         potwierdzeniu odebrania informacji o sesji
         """
-        if (self.state != session_manager_states["SESSION_CONFIRMATION"]):
+        if self.state not in [
+            session_manager_states["SESSION_CONFIRMATION"],
+            session_manager_states["DATA_TRANSFER"]
+        ] or len(packet.content()) < 18:
             self.state = session_manager_states["ERROR"]
             return self.handle_error()
+
         stream_count = packet.content().decode()[1]
+
         self.stream_ids = [
             str(packet.content()[i: i + 16].decode()).strip()
             for i in range(2, 2 + int(stream_count) * 16, 16)
@@ -168,22 +183,18 @@ class SessionManager:
         Metoda pomocnicza służąca
         potwierdzeniu zamknięcia sesji
         """
-        return self.simple_ack("SESSION_CLOSING", "INIT", "close")
-
-    def simple_ack(
-        self, expected_state: str, next_state: str, return_packet_type: str
-    ) -> Packet:
-        if session_manager_states[expected_state] not in [self.state - 1, self.state]:
+        if session_manager_states["SESSION_CLOSING"] != self.state:
             self.state = session_manager_states["ERROR"]
             return self.handle_error()
-        self.state = session_manager_states[next_state]
-        return Packet(packet_type_server[return_packet_type].encode())
+        self.state = session_manager_states["INIT"]
+        return Packet(packet_type_server["close"].encode())
 
     def handle_error(self) -> Packet:
         """
         Metoda pomocnicza służąca
         wysyłaniu kodu błędu
         """
+        self.session_key = None
         self.state = session_manager_states["INIT"]
         return Packet(packet_type_server["terminal"].encode())
 

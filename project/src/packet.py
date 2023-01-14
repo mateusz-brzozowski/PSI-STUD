@@ -14,7 +14,11 @@ class Packet:
         return len(self._content)
 
     def msg_type(self) -> str:
-        return self._content[:1].decode()
+        try:
+            return self._content[:1].decode()
+        except UnicodeDecodeError:
+            print('Packet: Błąd w czasie dekodowania wartości polecenia')
+            return "5"
 
     def encrypt(self, session_key: int) -> None:
         print(f"Packet: Wiadomość nie zakodowana: {self._content}")
