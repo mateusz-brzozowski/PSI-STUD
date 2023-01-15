@@ -15,6 +15,7 @@ import diffie_hellman
 from data import SenderData
 from packet import Packet, packet_type_client, packet_type_server
 from utility import pack, unpack
+from log_util import format_data
 
 SENDER_STATES = {
     "INIT": 1,
@@ -131,7 +132,9 @@ class Sender:
 
         try:
             self._sock.send(message.content())
-            print(f"Sender: Wysłana wiadomość: {message.content()}")
+            print(
+                f"Sender: Wysłana wiadomość: {format_data(message.content())}"
+            )
         except socket.error as exception:
             print(f"Sender: Wyjątek podczas wysyłania danych: {exception}")
         except UnicodeEncodeError as exception:

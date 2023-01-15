@@ -10,6 +10,8 @@ from typing import Dict, List, Optional, Tuple, Type
 from database import Database
 from packet import Packet
 from session import SessionManager
+from log_util import format_data
+
 
 matplotlib_spec = util.find_spec("matplotlib")
 if matplotlib_spec is not None:
@@ -75,7 +77,7 @@ class Receiver:
         try:
             (data, address) = self._sock.recvfrom(self.BUFSIZE)
 
-            print(f"Receiver: Otrzymano wiadomość: {data}")
+            print(f"Receiver: Otrzymano wiadomość: {format_data(data)}")
             print(f"Receiver: Rozmiar otrzymanych danych: {len(data)}")
             print(f"Receiver: Adres klienta: {address}")
 
@@ -116,7 +118,9 @@ class Receiver:
             # ignore case not enough bytes sent -> due to invalid packet
             # received client will resend his packet and then the server
             # will respond again
-            print(f"Receiver: Wiadomość wysłana: {datagram.content()}")
+            print(
+                f"Receiver: Wiadomość wysłana: {format_data(datagram.content())}"
+            )
         except socket.error as socketError:
             print(f"Receiver: Wyjątek podczas wysyłania danych: {socketError}")
 

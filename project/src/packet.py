@@ -1,4 +1,5 @@
 import diffie_hellman
+from log_util import format_data
 
 
 class Packet:
@@ -17,18 +18,20 @@ class Packet:
         try:
             return self._content[:1].decode()
         except UnicodeDecodeError:
-            print('Packet: Błąd w czasie dekodowania wartości polecenia')
+            print("Packet: Błąd w czasie dekodowania wartości polecenia")
             return "5"
 
     def encrypt(self, session_key: int) -> None:
-        print(f"Packet: Wiadomość nie zakodowana: {self._content}")
+        print(
+            f"Packet: Wiadomość nie zakodowana: {format_data(self._content)}"
+        )
         self._content = diffie_hellman.encrypt(self._content, session_key)
-        print(f"Packet: Wiadomość zakodowana: {self._content}")
+        print(f"Packet: Wiadomość zakodowana: {format_data(self._content)}")
 
     def decrypt(self, session_key: int) -> None:
-        print(f"Packet: Zakodowana wiadomość: {self._content}")
+        print(f"Packet: Zakodowana wiadomość: {format_data(self._content)}")
         self._content = diffie_hellman.decrypt(self._content, session_key)
-        print(f"Packet: Odkodowana wiadomość: {self._content}")
+        print(f"Packet: Odkodowana wiadomość: {format_data(self._content)}")
 
 
 packet_type_client = {
