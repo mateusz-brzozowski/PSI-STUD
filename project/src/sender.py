@@ -12,10 +12,10 @@ from types import TracebackType
 from typing import List, Optional, Tuple, Type
 
 import diffie_hellman
-from data import SenderData
+from data import Data
+from log_util import format_data
 from packet import Packet, packet_type_client, packet_type_server
 from utility import pack, unpack
-from log_util import format_data
 
 SENDER_STATES = {
     "INIT": 1,
@@ -46,7 +46,7 @@ class Sender:
     """
 
     _state: int
-    send_buffer: Queue[SenderData]
+    send_buffer: Queue[Data]
     write_semaphore: Semaphore
     _read_semaphore: Semaphore
     _session_key: Optional[int]
@@ -284,7 +284,7 @@ class Sender:
         else:
             self._state = SENDER_STATES["INIT"]
 
-    def save_data_to_buffer(self, data: SenderData) -> None:
+    def save_data_to_buffer(self, data: Data) -> None:
         self.write_semaphore.acquire()
 
         self.send_buffer.put(data)
@@ -331,7 +331,7 @@ def thread_generator(id: str, sender: Sender) -> None:
         new = min(max(last + random.randint(-50, 50), 100), 1000)
         last = new
         sender.save_data_to_buffer(
-            SenderData(id, datetime.now(), pack(new, 4))
+            Data(id, datetime.now(), pack(new, 4))
         )
         time.sleep(random.random() + 1.1)
 
