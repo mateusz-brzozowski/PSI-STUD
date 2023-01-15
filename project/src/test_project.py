@@ -11,7 +11,7 @@ from sender import THREAD_IDS, Sender, thread_generator
 def test_fibb():
     """
     Teścior do sprawdzenia czy przesłanie
-    
+    sekwencji fibbonaciego działa poprawnie
     """
     # Odbiorca
     # host_r = "0.0.0.0"
