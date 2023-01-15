@@ -3,7 +3,7 @@ import socket
 from datetime import datetime
 from threading import Semaphore, Thread
 
-from data import SenderData
+from data import Data
 from database import Database
 from receiver import Receiver
 from sender import THREAD_IDS, Sender
@@ -26,7 +26,7 @@ def fib_generator(id: str, sender: Sender) -> None:
         if num > 2971215073:  # we don't need to go further than this number
             break
         sender.save_data_to_buffer(
-            SenderData(id, datetime.now(), pack(num, 4))
+            Data(id, datetime.now(), pack(num, 4))
         )
         counter += 1
 
