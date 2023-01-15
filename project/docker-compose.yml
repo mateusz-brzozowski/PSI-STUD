@@ -19,7 +19,7 @@ services:
     image: furritos/pycryptodome:3.9-alpine
     volumes:
       - ./src/:/home/project/
-    command: python -u /home/project/sender.py z43_receiver 8080
+    command: python -u /home/project/sender.py z43_receiver 8080 8081
     depends_on:
       - z43_receiver
 
