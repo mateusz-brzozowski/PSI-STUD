@@ -40,9 +40,6 @@ class Interface:
         i = 0
         for client in self.database.clients_address():
 
-            # self.axis[i].set_title(f"Data source: {client}")
-            # print(self.database.client_streams(client))
-
             for stream in self.database.client_streams(client):
                 xdata: List[datetime] = []
                 ydata: List[float] = []
@@ -55,14 +52,12 @@ class Interface:
                 if self.database.client_streams(client).index(stream) == 0:
                     self.axis[i].clear()
                 self.axis[i].set_title(f"Data source: {client}")
-                # self.axis[i].set_xlim((datetime.now() - timedelta(seconds=5)).timestamp(), (datetime.now() + timedelta(seconds=5)).timestamp())
                 self.axis[i].set_ylim(50, 1050)
                 for entry in data[-SIZE:]:
                     # for entry in data:
                     xdata.append(entry.time)
                     ydata.append(entry.value)
-                    # self.axis[i].clear()
-                
+
                 self.axis[i].plot(
                     xdata,
                     ydata,
@@ -77,8 +72,6 @@ class Interface:
             if i > MAX_CLIENTS:
                 break
 
-        # sleep(1)
-
     def init_dashboard(self) -> None:
         self.fig, self.axis = plt.subplots(MAX_CLIENTS)
 
@@ -87,16 +80,6 @@ class Interface:
             self.fig, self.animate, frames=np.array(list(range(40)))
         )
         plt.show()
-
-
-# def get_vals_from_key(key: str) -> List[str]:
-#     stream_id, address, port = key.split(":")
-#     return [stream_id, address, port]
-
-
-# def title_with_address(key: str) -> str:
-#     address, port = get_vals_from_key(key)[1:]
-#     return f"Data source: {address}:{port}"
 
 
 def insert_data(database: Database) -> None:
