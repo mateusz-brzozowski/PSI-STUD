@@ -63,7 +63,7 @@ class Sender:
     DATA_SIZE = 9
     MAX_DATA_SIZE = 512
 
-    def __init__(self, address: Tuple[str, int], write_semaphore: Semaphore, stream_ids: List[str]) -> None:
+    def __init__(self, address: Tuple[str, int], write_semaphore: Semaphore, stream_ids: List[str], bind_port: Optional[int]) -> None:
         (self._prime_number, self._primitive_root, self._private_key,
          self._public_key) = diffie_hellman.get_data()
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -79,7 +79,8 @@ class Sender:
         self._stream_ids = stream_ids
 
         try:
-            self._sock.bind(("0.0.0.0", 8081))
+            if bind_port:
+                self._sock.bind(("0.0.0.0", bind_port))
             self._sock.connect(address)
         except socket.error as exception:
             raise socket.error(
@@ -332,7 +333,7 @@ def thread_generator(id: str, sender: Sender) -> None:
         time.sleep(random.random() + 1.1)
 
 
-def parse_arguments(args: List[str]) -> Tuple[str, int]:
+def parse_arguments(args: List[str]) -> Tuple[str, int, Optional[int]]:
     if len(args) < 3:
         print(
             "Brak zdefiniowanego hosta lub portu, "
@@ -345,9 +346,13 @@ def parse_arguments(args: List[str]) -> Tuple[str, int]:
         host = sys.argv[1]
         port = int(sys.argv[2])
 
+    bind_port = None
+    if (len(args) == 4):
+        bind_port = int(sys.argv[3])
+
     host_address = socket.gethostbyname(host)
 
-    return host_address, port
+    return host_address, port, bind_port
 
 
 THREAD_IDS = [
@@ -364,7 +369,7 @@ THREAD_IDS = [
 
 def main(args: List[str]) -> None:
     try:
-        (host, port) = parse_arguments(args)
+        (host, port, bind_port) = parse_arguments(args)
     except socket.error as exception:
         print(f"Metoda gethostbyname() zgłosiła wyjątek: {exception}")
         return
@@ -376,7 +381,7 @@ def main(args: List[str]) -> None:
     threads: List[Thread] = []
     write_semaphore = Semaphore(number_of_threads)
 
-    with Sender((host, port), write_semaphore, THREAD_IDS) as s:
+    with Sender((host, port), write_semaphore, THREAD_IDS, bind_port) as s:
         threads.extend(
             Thread(target=thread_generator, args=(THREAD_IDS[thread_num], s))
             for thread_num in range(number_of_threads)
