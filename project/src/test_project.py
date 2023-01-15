@@ -23,6 +23,8 @@ def fib_generator(id: str, sender: Sender) -> None:
     counter = 0
     while True:
         num = fib(counter)
+        if num > 2971215073:  # we don't need to go further than this number
+            break
         sender.save_data_to_buffer(
             SenderData(id, datetime.now(), pack(num, 4))
         )
@@ -101,3 +103,7 @@ def test_fib():
         actual.extend(data_entry.value for data_entry in data)
 
     assert actual == expected
+
+
+if __name__ == "__main__":
+    test_fib()
