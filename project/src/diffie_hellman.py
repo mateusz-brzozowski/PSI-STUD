@@ -64,13 +64,11 @@ def get_session_key(
 
 def encrypt(message: bytes, session_key: int) -> bytes:
     return bytes(
-        (message[i] + session_key) % 256 for i in range(len(message))
-        # (message[i] + (session_key >> (i % 24))) % 256 for i in range(len(message))
+        (message[i] + (session_key >> (i % 24))) % 256 for i in range(len(message))
     )
 
 
 def decrypt(message: bytes, session_key: int) -> bytes:
     return bytes(
-        (message[i] - session_key) % 256 for i in range(len(message))
-        # (message[i] - (session_key >> (i % 24))) % 256 for i in range(len(message))
+        (message[i] - (session_key >> (i % 24))) % 256 for i in range(len(message))
     )
