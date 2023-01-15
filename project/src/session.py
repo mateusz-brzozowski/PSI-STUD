@@ -93,6 +93,7 @@ class SessionManager:
         if self.state not in [session_manager_states["INIT"], session_manager_states["SYMMETRIC_KEY_NEGOTIATION"]]:
             return self.handle_error()
 
+        self.received_datagram_nr = None
         self.session_key = None
         self.state = session_manager_states["SYMMETRIC_KEY_NEGOTIATION"]
         return Packet(packet_type_server["initial"].encode())
@@ -136,14 +137,16 @@ class SessionManager:
             session_manager_states["SESSION_CONFIRMATION"],
             session_manager_states["DATA_TRANSFER"]
         ] or len(packet.content()) < 18:
-            self.state = session_manager_states["ERROR"]
             return self.handle_error()
 
-        stream_count = packet.content().decode()[1]
+        stream_count = unpack(packet.content()[1:2])
+
+        if len(packet.content()) < 2 + stream_count * 16:
+            return self.handle_error()
 
         self.stream_ids = [
             str(packet.content()[i: i + 16].decode()).strip()
-            for i in range(2, 2 + int(stream_count) * 16, 16)
+            for i in range(2, 2 + stream_count * 16, 16)
         ]
         self.state = session_manager_states["DATA_TRANSFER"]
         return Packet(packet_type_server["acknowledge"].encode())
@@ -153,16 +156,18 @@ class SessionManager:
         Metoda pomocnicza służąca
         potwierdzeniu odbioru paczki danych
         """
-        if self.state != session_manager_states["DATA_TRANSFER"]:
-            self.state = session_manager_states["ERROR"]
+        if self.state != session_manager_states["DATA_TRANSFER"] \
+                or len(packet.content()) < 3:
             return self.handle_error()
-        datagram_num = packet.content()[1:3]
+
+        datagram_num = unpack(packet.content()[1:3])
         data = packet.content()[3:]
         data_entry_len = 9  # 1 + 4 + 4
         data_entries = [
             data[i: i + data_entry_len]
             for i in range(0, len(data), data_entry_len)
         ]
+
         if self.received_datagram_nr != datagram_num:
             for data_entry in data_entries:
                 stream_id = data_entry[0]
@@ -175,8 +180,9 @@ class SessionManager:
                 )
                 self.database.insert(new_data_entry, (self.host, self.port))
             self.received_datagram_nr = datagram_num
-        # self.state = session_manager_states["SESSION_CLOSING"]
-        return Packet(packet_type_server["receive"].encode() + datagram_num)
+        else:
+            print("SessionManager: Już otrzymano pakiet o tym numerze")
+        return Packet(packet_type_server["receive"].encode() + packet.content()[1:3])
 
     def handle_close(self) -> Packet:
         """

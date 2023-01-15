@@ -58,7 +58,7 @@ class Sender:
     _send_datagram_number: int
     _work: bool
     _previous_datagram: Packet
-    _previous_data_datagram: Optional[bytes]
+    _previous_message_content: Optional[bytes]
     _stream_ids: List[str] = []
     DATA_SIZE = 9
     MAX_DATA_SIZE = 512
@@ -75,11 +75,11 @@ class Sender:
         self._sock.settimeout(10)
         self._state = SENDER_STATES["INIT"]
         self._work = True
-        self._previous_data_datagram = None
+        self._previous_message_content = None
         self._stream_ids = stream_ids
 
         try:
-            self._sock.bind(("127.0.0.1", 8081))
+            self._sock.bind(("0.0.0.0", 8081))
             self._sock.connect(address)
         except socket.error as exception:
             raise socket.error(
@@ -108,11 +108,11 @@ class Sender:
             elif self._state == SENDER_STATES["SESSION_CONFIRMATION"]:
                 self.send_declaration()
             elif self._state == SENDER_STATES["DATA_TRANSFER"]:
-                if self._previous_data_datagram:
+                if self._previous_message_content:
                     self.send_data(Packet(
                         packet_type_client["send"].encode()
                         + pack(self._send_datagram_number, 2)
-                        + self._previous_data_datagram
+                        + self._previous_message_content
                     ))
                 else:
                     self.send_new_data()
@@ -215,13 +215,13 @@ class Sender:
             self._state = SENDER_STATES["SESSION_CLOSING"]
 
     def send_declaration(self) -> None:
-        content = packet_type_client["declaration"] \
-            + str(len(self._stream_ids))
+        content = packet_type_client["declaration"].encode() \
+            + pack(len(self._stream_ids), 1)
 
         for stream in self._stream_ids:
-            content += stream.ljust(16)
+            content += stream.ljust(16).encode()
 
-        message = Packet(content.encode())
+        message = Packet(content)
         self.send(message)
 
         received = self.handle_receive()
@@ -237,7 +237,7 @@ class Sender:
 
     def send_new_data(self) -> None:
         message = self.prepare_next_packet()
-        self._previous_data_datagram = message.content()[3:]
+        self._previous_message_content = message.content()[3:]
         self.send_data(message)
 
     def send_data(self, message: Packet) -> None:
@@ -255,7 +255,7 @@ class Sender:
             if received.msg_type() == packet_type_server["receive"] and self._send_datagram_number == number:
                 self._send_datagram_number = \
                     (self._send_datagram_number + 1) % 2 ** 16
-                self._previous_data_datagram = None
+                self._previous_message_content = None
                 self._state = SENDER_STATES["DATA_TRANSFER"]
             elif received.msg_type() == packet_type_server["receive"]:
                 self._state = SENDER_STATES["DATA_TRANSFER"]
