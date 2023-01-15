@@ -16,6 +16,16 @@ from data import SenderData
 from packet import Packet, packet_type_client, packet_type_server
 from utility import pack, unpack
 
+SENDER_STATES = {
+    "INIT": 1,
+    "SYMMETRIC_KEY_NEGOTIATION": 2,
+    "SESSION_CONFIRMATION": 3,
+    "DATA_TRANSFER": 4,
+    "SESSION_CLOSING": 5
+}
+
+SEND_DATA_MAX_INTERVAL = 30
+
 
 class Sender:
     """
@@ -34,8 +44,10 @@ class Sender:
           nie otrzyma odpowiedzi - kończy połączenie
     """
 
+    _state: int
     send_buffer: Queue[SenderData]
-    semaphore: Semaphore
+    write_semaphore: Semaphore
+    _read_semaphore: Semaphore
     _session_key: Optional[int]
     _public_key: int  # A
     _private_key: int  # a
@@ -46,36 +58,33 @@ class Sender:
     _send_datagram_number: int
     _work: bool
     _previous_datagram: Packet
+    _previous_message_content: Optional[bytes]
+    _stream_ids: List[str] = []
     DATA_SIZE = 9
     MAX_DATA_SIZE = 512
-    threads = {
-        0: "Miernik CO2",
-        1: "Miernik SO2",
-        2: "Miernik NO2",
-        3: "Miernik CO",
-        4: "Miernik C6H6",
-        5: "Miernik O3",
-        6: "Miernik PM10",
-        7: "Miernik PM2.5",
-    }
 
-    def __init__(self, address: Tuple[str, int], semaphore: Semaphore) -> None:
+    def __init__(self, address: Tuple[str, int], write_semaphore: Semaphore, stream_ids: List[str]) -> None:
         (self._prime_number, self._primitive_root, self._private_key,
          self._public_key) = diffie_hellman.get_data()
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self._send_datagram_number = 0
-        self.semaphore = semaphore
+        self.write_semaphore = write_semaphore
+        self._read_semaphore = Semaphore(1)
+        self._read_semaphore.acquire()
         self.send_buffer = Queue()
         self._sock.settimeout(10)
+        self._state = SENDER_STATES["INIT"]
+        self._work = True
+        self._previous_message_content = None
+        self._stream_ids = stream_ids
 
         try:
+            self._sock.bind(("0.0.0.0", 8081))
             self._sock.connect(address)
         except socket.error as exception:
             raise socket.error(
                 f"Sender: Wyjątek podczas nawiązywania połączenia: {exception}"
             ) from exception
-
-        self.init()
 
     def __enter__(self) -> Sender:
         return self
@@ -90,154 +99,221 @@ class Sender:
 
     def work(self) -> None:
         while self._work:
-            if 3 + self.buffer_length() + self.DATA_SIZE >= self.MAX_DATA_SIZE:
-                self.send_data()
-                if not self.handle_receive():
-                    self._work = False
+            print(f"Sender: Aktualny stan: {self._state}")
 
-    def handle_receive(self) -> bool:
-        for _ in range(10):
-            if self.receive():
-                return True
-            else:
-                self.send(self._previous_datagram)
-        return False
+            if self._state == SENDER_STATES["INIT"]:
+                self.init()
+            elif self._state == SENDER_STATES["SYMMETRIC_KEY_NEGOTIATION"]:
+                self.send_session_data()
+            elif self._state == SENDER_STATES["SESSION_CONFIRMATION"]:
+                self.send_declaration()
+            elif self._state == SENDER_STATES["DATA_TRANSFER"]:
+                if self._previous_message_content:
+                    self.send_data(Packet(
+                        packet_type_client["send"].encode()
+                        + pack(self._send_datagram_number, 2)
+                        + self._previous_message_content
+                    ))
+                else:
+                    self.send_new_data()
+            elif self._state == SENDER_STATES["SESSION_CLOSING"]:
+                self.send_close_session()
+
+    def switch(self) -> None:
+        self._work = not self._work
 
     def send(self, message: Packet) -> None:
+        self._previous_datagram = Packet(message.content()[:])
+
+        if self._session_key:
+            message.encrypt(self._session_key)
+
         try:
-            if chr(message.content()[0]) == packet_type_client["declaration"]:
-                msg = message.content().decode()
-                msg_type = int(msg[0])
-                msg_sen_num = int(msg[1])
-                data_str = "".join(
-                    f"[{msg[i:i + 16]}]" for i in range(2, len(msg), 16)
-                )
-                print(
-                    f'Sender: Wiadomość wysłana: "{msg_type} {msg_sen_num} {data_str}"'
-                )
-            elif chr(message.content()[0]) == packet_type_client["initial"]:
-                print(
-                    f"Sender: Wiadomość wysłana: {message.content().decode()}")
-            else:
-                self._extracted_from_send_14(message)
-            # TODO: if session do sth else
-
-            if self._session_key:
-                encrypted_message = diffie_hellman.encrypt(
-                    message.content(), self._session_key)
-                self._sock.send(encrypted_message)
-            else:
-                self._sock.send(message.content())
-
-            self._previous_datagram = message
+            self._sock.send(message.content())
+            print(f"Sender: Wysłana wiadomość: {message.content()}")
         except socket.error as exception:
             print(f"Sender: Wyjątek podczas wysyłania danych: {exception}")
         except UnicodeEncodeError as exception:
             print(
                 f"Sender: Wyjątek podczas enkodowania tekstu na bajty: {exception}")
 
-    # TODO Rename this here and in `send`
-    def _extracted_from_send_14(self, message: Packet) -> None:
-        msg_type = int(chr(message.content()[0]))
-        datagram_num = unpack(message.content()[1:3])
-        data_str: str = ""
-        for i in range(3, len(message.content()), self.DATA_SIZE):
-            data_id = unpack(message.content()[i: i + 1])
-            data_timestamp = unpack(message.content()[i + 1: i + 5])
-            data_content = unpack(
-                message.content()[i + 5: i + self.DATA_SIZE]
-            )
-            data_str += f"[{data_id} {data_timestamp} {data_content}]"
-        print(
-            "Sender: Wiadomość wysłana: " f'{msg_type} {datagram_num} {data_str}"')
-        print(
-            "Sender: Wiadomość wysłana (raw): " f'{message.content()[:100]!r}[...]"')
-
-    def receive(self) -> bool:
+    def receive(self) -> Optional[Packet]:
         try:
             data = self._sock.recv(512)
+
+            print(f"Sender: Otrzymana wiadomość: {data}")
+
             datagram = Packet(data)
+
             if self._session_key:
                 datagram.decrypt(self._session_key)
-                data = datagram.content()
 
-            msg_type = chr(data[0])
-            if msg_type == packet_type_server['receive']:
-                msg_content = unpack(data[1:])
-                print(f"Sender: Otrzymana wiadomość: {msg_type} {msg_content}")
-            elif msg_type == packet_type_server["session_data"]:
-                self._receiver_public_key = unpack(data[1:9])
-                self._session_key = diffie_hellman.get_session_key(
-                    self._receiver_public_key, self._private_key, self._prime_number
-                )
-            elif msg_type == packet_type_server["terminal"]:
-                self.send(Packet(packet_type_client["close"].encode()))
-                self.init()
-            elif msg_type == packet_type_server["close"]:
-                self.send(Packet(packet_type_client["close"].encode()))
-                self._work = False
-            else:
-                print(f"Sender: Otrzymana wiadomość: {data.decode()}")
-
-            if self._previous_datagram.content()[:1] == data[:1]:
-                self._previous_datagram = None
-                return True
+            return datagram
 
         except socket.error as exception:
             print(f"Sender: Wyjątek podczas otrzymywania danych:: {exception}")
         except UnicodeDecodeError as exception:
             print(
                 f"Sender: Wyjątek podczas dekodowania tekstu na bajty: {exception}")
-        return False
+
+        return None
+
+    def handle_receive(self) -> Optional[Packet]:
+        for _ in range(10):
+            datagram = self.receive()
+
+            if datagram:
+                return datagram
+            else:
+                self.send(self._previous_datagram)
+
+        self._state = SENDER_STATES["SESSION_CLOSING"]
+        return None
 
     def init(self):
-        self._previous_datagram = None
         self._session_key = None
-        self._work = False
-        self.send(Packet(packet_type_client["initial"].encode()))
-        if self.handle_receive():
-            if self.send_session_data():
-                self.send_declaration()
+        self._send_datagram_number = 0
 
-    def send_session_data(self) -> bool:
-        message = packet_type_client["session_data"].encode(
-        ) + pack(self._public_key, 8) + pack(self._primitive_root, 4) + pack(self._prime_number, 8)
-        self.send(Packet(message))
-        return self.handle_receive()
+        message = Packet(packet_type_client["initial"].encode())
 
-    def send_declaration(self) -> None:
-        message = packet_type_client["declaration"] + str(len(self.threads))
-        for thread in self.threads.values():
-            message += thread.ljust(16)
-        self.send(Packet(message.encode()))
-        if self.handle_receive():
+        self.send(message)
+
+        received = self.handle_receive()
+
+        if received:
+            data = received.content()
+            if len(data) >= 1 and received.msg_type() == packet_type_server["initial"]:
+                self._state = SENDER_STATES["SYMMETRIC_KEY_NEGOTIATION"]
+            else:
+                self._state = SENDER_STATES["SESSION_CLOSING"]
+        else:
             self._work = False
 
-    def send_data(self) -> None:
-        if self._previous_datagram:
-            self.send(Packet(self._previous_datagram))
-            return
+    def send_session_data(self) -> None:
+        content = packet_type_client["session_data"].encode() \
+            + pack(self._public_key, 8) \
+            + pack(self._primitive_root, 4) \
+            + pack(self._prime_number, 8)
 
-        message = packet_type_client["send"].encode() + pack(
-            self._send_datagram_number, 2
-        )
-        for _ in range((self.MAX_DATA_SIZE - len(message)) // self.DATA_SIZE):
-            data = self.send_buffer.get()
-            message += pack(data.data_stream_id, 1)
-            message += pack(int(data.time.timestamp()), 4)
-            message += data.content
+        message = Packet(content)
 
-        print(f"Sender: Rozmiar pakietu: {len(message)}")
-        self.send(Packet(message))
-        self._send_datagram_number += 1
+        self.send(message)
+
+        received = self.handle_receive()
+
+        if received:
+            data = received.content()
+            if len(data) >= 9 and received.msg_type() == packet_type_server["session_data"]:
+                self._receiver_public_key = unpack(data[1:9])
+                self._session_key = diffie_hellman.get_session_key(
+                    self._receiver_public_key, self._private_key, self._prime_number
+                )
+                self._state = SENDER_STATES["SESSION_CONFIRMATION"]
+            else:
+                self._state = SENDER_STATES["SESSION_CLOSING"]
+        else:
+            self._state = SENDER_STATES["SESSION_CLOSING"]
+
+    def send_declaration(self) -> None:
+        content = packet_type_client["declaration"].encode() \
+            + pack(len(self._stream_ids), 1)
+
+        for stream in self._stream_ids:
+            content += stream.ljust(16).encode()
+
+        message = Packet(content)
+        self.send(message)
+
+        received = self.handle_receive()
+
+        if received:
+            data = received.content()
+            if len(data) >= 1 and received.msg_type() == packet_type_server["acknowledge"]:
+                self._state = SENDER_STATES["DATA_TRANSFER"]
+            else:
+                self._state = SENDER_STATES["SESSION_CLOSING"]
+        else:
+            self._state = SENDER_STATES["SESSION_CLOSING"]
+
+    def send_new_data(self) -> None:
+        message = self.prepare_next_packet()
+        self._previous_message_content = message.content()[3:]
+        self.send_data(message)
+
+    def send_data(self, message: Packet) -> None:
+        self.send(message)
+
+        received = self.handle_receive()
+
+        if received:
+            data = received.content()
+
+            number = -1
+            if len(data) >= 3:
+                number = unpack(data[1:3])
+
+            if received.msg_type() == packet_type_server["receive"] and self._send_datagram_number == number:
+                self._send_datagram_number = \
+                    (self._send_datagram_number + 1) % 2 ** 16
+                self._previous_message_content = None
+                self._state = SENDER_STATES["DATA_TRANSFER"]
+            elif received.msg_type() == packet_type_server["receive"]:
+                self._state = SENDER_STATES["DATA_TRANSFER"]
+            else:
+                self._state = SENDER_STATES["SESSION_CLOSING"]
+        else:
+            self._state = SENDER_STATES["SESSION_CLOSING"]
+
+    def send_close_session(self) -> None:
+        content = packet_type_client["close"].encode()
+        message = Packet(content)
+        self.send(message)
+
+        received = self.handle_receive()
+
+        if received:
+            data = received.content()
+            if len(data) >= 1 and received.msg_type() == packet_type_server["close"]:
+                self._state = SENDER_STATES["INIT"]
+            else:
+                self._state = SENDER_STATES["INIT"]
+        else:
+            self._state = SENDER_STATES["INIT"]
 
     def save_data_to_buffer(self, data: SenderData) -> None:
-        self.semaphore.acquire()
-        self.send_buffer.put(data)
-        self.semaphore.release()
+        self.write_semaphore.acquire()
 
-    def buffer_length(self) -> int:
-        return self.send_buffer.qsize() * self.DATA_SIZE + 3
+        self.send_buffer.put(data)
+
+        if self.is_buffer_ready_to_read():
+            self._read_semaphore.release()
+
+        self.write_semaphore.release()
+
+    def prepare_next_packet(self) -> Packet:
+        self._read_semaphore.acquire(
+            timeout=SEND_DATA_MAX_INTERVAL
+        )
+
+        content = packet_type_client["send"].encode() \
+            + pack(self._send_datagram_number, 2)
+
+        for _ in range((self.MAX_DATA_SIZE - len(content)) // self.DATA_SIZE):
+            if self.send_buffer.empty():
+                break
+
+            data = self.send_buffer.get()
+            content += pack(self._stream_ids.index(data.data_stream_id), 1)
+            content += pack(int(data.time.timestamp()), 4)
+            content += data.content
+
+        if self.is_buffer_ready_to_read():
+            self._read_semaphore.release()
+
+        return Packet(content)
+
+    def is_buffer_ready_to_read(self) -> bool:
+        return self.send_buffer.qsize() * self.DATA_SIZE + 3 > self.MAX_DATA_SIZE
 
 
 def generate_data(length: int) -> str:
@@ -245,7 +321,7 @@ def generate_data(length: int) -> str:
     return "".join(random.choice(letters) for _ in range(length))
 
 
-def thread_generator(id: int, sender: Sender) -> None:
+def thread_generator(id: str, sender: Sender) -> None:
     last = random.randint(100, 1000)
     while True:
         new = min(max(last + random.randint(-50, 50), 100), 1000)
@@ -274,6 +350,18 @@ def parse_arguments(args: List[str]) -> Tuple[str, int]:
     return host_address, port
 
 
+THREAD_IDS = [
+    "Miernik CO2",
+    "Miernik SO2",
+    "Miernik NO2",
+    "Miernik CO",
+    "Miernik C6H6",
+    "Miernik O3",
+    "Miernik PM10",
+    "Miernik PM2.5"
+]
+
+
 def main(args: List[str]) -> None:
     try:
         (host, port) = parse_arguments(args)
@@ -286,12 +374,12 @@ def main(args: List[str]) -> None:
 
     number_of_threads = 8
     threads: List[Thread] = []
-    semaphore = Semaphore(number_of_threads)
+    write_semaphore = Semaphore(number_of_threads)
 
-    with Sender((host, port), semaphore) as s:
+    with Sender((host, port), write_semaphore, THREAD_IDS) as s:
         threads.extend(
-            Thread(target=thread_generator, args=(thread_id, s))
-            for thread_id in range(number_of_threads)
+            Thread(target=thread_generator, args=(THREAD_IDS[thread_num], s))
+            for thread_num in range(number_of_threads)
         )
         for thread in threads:
             thread.start()
