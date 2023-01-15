@@ -9,14 +9,14 @@ services:
 
   z43_receiver:
     container_name: z43_receiver
-    image: python:3
+    image: furritos/pycryptodome:3.9-alpine
     volumes:
       - ./src/:/home/project/
     command: python -u /home/project/receiver.py
 
   z43_sender_1:
     container_name: z43_sender_1
-    image: python:3
+    image: furritos/pycryptodome:3.9-alpine
     volumes:
       - ./src/:/home/project/
     command: python -u /home/project/sender.py z43_receiver 8080
@@ -25,7 +25,7 @@ services:
 
   z43_sender_2:
     container_name: z43_sender_2
-    image: python:3
+    image: furritos/pycryptodome:3.9-alpine
     volumes:
       - ./src/:/home/project/
     command: python -u /home/project/sender.py z43_receiver 8080
