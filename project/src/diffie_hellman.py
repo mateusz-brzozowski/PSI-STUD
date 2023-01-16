@@ -1,3 +1,7 @@
+# Projekt
+# Autorzy: Mateusz Brzozowski, Bartłomiej Krawczyk, Jakub Marcowski, Aleksandra Sypuła
+# Data ukończenia: 16.01.2023
+
 import random
 from math import gcd
 from typing import Tuple

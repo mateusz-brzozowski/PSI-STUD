@@ -1,3 +1,7 @@
+# Projekt
+# Autorzy: Mateusz Brzozowski, Bartłomiej Krawczyk, Jakub Marcowski, Aleksandra Sypuła
+# Data ukończenia: 16.01.2023
+
 import sys
 from datetime import datetime
 from typing import List, Optional
@@ -158,7 +162,7 @@ class SessionManager:
             return self.handle_error()
 
         self.stream_ids = [
-            str(packet.content()[i : i + 16].decode()).strip()
+            str(packet.content()[i: i + 16].decode()).strip()
             for i in range(2, 2 + stream_count * 16, 16)
         ]
         self.state = session_manager_states["DATA_TRANSFER"]
@@ -179,7 +183,7 @@ class SessionManager:
         data = packet.content()[3:]
         data_entry_len = 9  # 1 + 4 + 4
         data_entries = [
-            data[i : i + data_entry_len]
+            data[i: i + data_entry_len]
             for i in range(0, len(data), data_entry_len)
         ]
 

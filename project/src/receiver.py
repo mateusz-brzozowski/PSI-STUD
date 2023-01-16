@@ -1,3 +1,7 @@
+# Projekt
+# Autorzy: Mateusz Brzozowski, Bartłomiej Krawczyk, Jakub Marcowski, Aleksandra Sypuła
+# Data ukończenia: 16.01.2023
+
 from __future__ import annotations
 
 import socket
@@ -117,9 +121,6 @@ class Receiver:
     ) -> None:
         try:
             self._sock.sendto(datagram.content(), address)
-            # ignore case not enough bytes sent -> due to invalid packet
-            # received client will resend his packet and then the server
-            # will respond again
             print(
                 "Receiver: Wiadomość wysłana: "
                 f"{format_data(datagram.content())}"

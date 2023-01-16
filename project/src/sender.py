@@ -1,3 +1,7 @@
+# Projekt
+# Autorzy: Mateusz Brzozowski, Bartłomiej Krawczyk, Jakub Marcowski, Aleksandra Sypuła
+# Data ukończenia: 16.01.2023
+
 from __future__ import annotations
 
 import random
@@ -25,7 +29,8 @@ SENDER_STATES = {
     "SESSION_CLOSING": 5,
 }
 
-SEND_DATA_MAX_INTERVAL = 30
+SEND_PACKET_MAX_INTERVAL = 30
+SOCKET_TIMEOUT = 10
 
 
 class Sender:
@@ -83,7 +88,7 @@ class Sender:
         self._read_semaphore = Semaphore(1)
         self._read_semaphore.acquire()
         self.send_buffer = Queue()
-        self._sock.settimeout(10)
+        self._sock.settimeout(SOCKET_TIMEOUT)
         self._state = SENDER_STATES["INIT"]
         self._work = True
         self._previous_message_content = None
@@ -317,7 +322,7 @@ class Sender:
         self.write_semaphore.release()
 
     def prepare_next_packet(self) -> Packet:
-        self._read_semaphore.acquire(timeout=SEND_DATA_MAX_INTERVAL)
+        self._read_semaphore.acquire(timeout=SEND_PACKET_MAX_INTERVAL)
 
         content = packet_type_client["send"].encode() + pack(
             self._send_datagram_number, 2
