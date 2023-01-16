@@ -8,10 +8,9 @@ from types import TracebackType
 from typing import Dict, List, Optional, Tuple, Type
 
 from database import Database
+from log_util import format_data
 from packet import Packet
 from session import SessionManager
-from log_util import format_data
-
 
 matplotlib_spec = util.find_spec("matplotlib")
 if matplotlib_spec is not None:
@@ -53,7 +52,7 @@ class Receiver:
     def switch(self) -> None:
         self._work = not self._work
 
-    def listen(self, host: str = "0.0.0.0", port: int = 8080):
+    def listen(self, host: str = "0.0.0.0", port: int = 8080) -> None:
         self.bind_address(host, port)
 
         while self._work:
@@ -68,7 +67,8 @@ class Receiver:
             self._sock.bind((host, port))
         except socket.error as exception:
             raise socket.error(
-                f"Receiver: Wyjątek podczas bindowania adresu do gniazda: {exception}"
+                f"Receiver: Wyjątek podczas bindowania "
+                f"adresu do gniazda: {exception}"
             ) from exception
 
     def receive_datagram(
@@ -84,10 +84,12 @@ class Receiver:
             return address, Packet(data)
         except socket.error as socketError:
             print(
-                f"Receiver: Wyjątek podczas otrzymywania danych: {socketError}")
+                f"Receiver: Wyjątek podczas otrzymywania danych: {socketError}"
+            )
         except UnicodeDecodeError as decodeError:
             print(
-                f"Receiver: Wyjątek podczas dekodowania otrzymanych danych: {decodeError}"
+                f"Receiver: Wyjątek podczas dekodowania "
+                f"otrzymanych danych: {decodeError}"
             )
 
         return None, None
@@ -119,7 +121,8 @@ class Receiver:
             # received client will resend his packet and then the server
             # will respond again
             print(
-                f"Receiver: Wiadomość wysłana: {format_data(datagram.content())}"
+                "Receiver: Wiadomość wysłana: "
+                f"{format_data(datagram.content())}"
             )
         except socket.error as socketError:
             print(f"Receiver: Wyjątek podczas wysyłania danych: {socketError}")
@@ -163,8 +166,10 @@ def main(args: List[str]) -> None:
         interface_inst = Interface(database)
         interface_inst.show()
     else:
-        print("Nie można wyświetlić interfejsu graficznego "
-              "- brak biblioteki matplotlib")
+        print(
+            "Nie można wyświetlić interfejsu graficznego "
+            "- brak biblioteki matplotlib"
+        )
 
 
 if __name__ == "__main__":

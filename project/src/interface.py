@@ -10,11 +10,20 @@ import seaborn as sns  # type: ignore
 from data import Data
 from database import Database
 from matplotlib.animation import FuncAnimation  # type: ignore
-from utility import pack
+from utility import pack, suppress_warings
 
 sns.set_style("darkgrid")
 
-COLORS = sns.color_palette("magma", 8)
+COLORS = [
+    (0.092949, 0.059904, 0.239164),
+    (0.265447, 0.060237, 0.46184),
+    (0.445163, 0.122724, 0.506901),
+    (0.620005, 0.18384, 0.497524),
+    (0.804752, 0.249911, 0.442102),
+    (0.944006, 0.377643, 0.365136),
+    (0.992196, 0.587502, 0.406299),
+    (0.996369, 0.791167, 0.553499),
+]
 SIZE = 10
 MAX_CLIENTS = 2
 
@@ -79,6 +88,7 @@ class Interface:
         anim = FuncAnimation(
             self.fig, self.animate, frames=np.array(list(range(40)))
         )
+        suppress_warings(anim)
         plt.show()
 
 
@@ -86,14 +96,14 @@ def insert_data(database: Database) -> None:
     while True:
         sleep(5)
         data = Data(
-            "uga_buga",
+            "test",
             datetime.now(),
             pack(int(random.random() * 900 + 100), 4),
         )
         database.insert(data, ("localhost", 8080))
 
 
-def main():
+def main() -> None:
     database = Database()
     interface = Interface(database)
     ins_data = Thread(target=insert_data, args=(database,))

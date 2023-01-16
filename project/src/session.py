@@ -90,7 +90,10 @@ class SessionManager:
         Metoda pomocnicza służąca
         potwierdzeniu otwarcia sesji
         """
-        if self.state not in [session_manager_states["INIT"], session_manager_states["SYMMETRIC_KEY_NEGOTIATION"]]:
+        if self.state not in [
+            session_manager_states["INIT"],
+            session_manager_states["SYMMETRIC_KEY_NEGOTIATION"],
+        ]:
             return self.handle_error()
 
         self.received_datagram_nr = None
@@ -104,10 +107,14 @@ class SessionManager:
         uzgodnieniu klucza symetrycznego
         """
 
-        if self.state not in [
-            session_manager_states["SYMMETRIC_KEY_NEGOTIATION"],
-            session_manager_states["SESSION_CONFIRMATION"]
-        ] or len(packet.content()) < 21:
+        if (
+            self.state
+            not in [
+                session_manager_states["SYMMETRIC_KEY_NEGOTIATION"],
+                session_manager_states["SESSION_CONFIRMATION"],
+            ]
+            or len(packet.content()) < 21
+        ):
             return self.handle_error()
 
         self.sender_public_key = unpack(packet.content()[1:9])
@@ -115,7 +122,9 @@ class SessionManager:
         self.sender_prime_number = unpack(packet.content()[13:21])
 
         self.public_key = diffie_hellman.calculate_public_key(
-            self.sender_primitive_root, self.private_key, self.sender_prime_number
+            self.sender_primitive_root,
+            self.private_key,
+            self.sender_prime_number,
         )
         self.session_key = diffie_hellman.get_session_key(
             self.sender_public_key, self.private_key, self.sender_prime_number
@@ -124,8 +133,8 @@ class SessionManager:
         self.state = session_manager_states["SESSION_CONFIRMATION"]
 
         return Packet(
-            packet_type_server["session_data"].encode() +
-            pack(self.public_key, 8)
+            packet_type_server["session_data"].encode()
+            + pack(self.public_key, 8)
         )
 
     def handle_declaration(self, packet: Packet) -> Packet:
@@ -133,10 +142,14 @@ class SessionManager:
         Metoda pomocznicza służąca
         potwierdzeniu odebrania informacji o sesji
         """
-        if self.state not in [
-            session_manager_states["SESSION_CONFIRMATION"],
-            session_manager_states["DATA_TRANSFER"]
-        ] or len(packet.content()) < 18:
+        if (
+            self.state
+            not in [
+                session_manager_states["SESSION_CONFIRMATION"],
+                session_manager_states["DATA_TRANSFER"],
+            ]
+            or len(packet.content()) < 18
+        ):
             return self.handle_error()
 
         stream_count = unpack(packet.content()[1:2])
@@ -145,7 +158,7 @@ class SessionManager:
             return self.handle_error()
 
         self.stream_ids = [
-            str(packet.content()[i: i + 16].decode()).strip()
+            str(packet.content()[i : i + 16].decode()).strip()
             for i in range(2, 2 + stream_count * 16, 16)
         ]
         self.state = session_manager_states["DATA_TRANSFER"]
@@ -156,15 +169,17 @@ class SessionManager:
         Metoda pomocnicza służąca
         potwierdzeniu odbioru paczki danych
         """
-        if self.state != session_manager_states["DATA_TRANSFER"] \
-                or len(packet.content()) < 3:
+        if (
+            self.state != session_manager_states["DATA_TRANSFER"]
+            or len(packet.content()) < 3
+        ):
             return self.handle_error()
 
         datagram_num = unpack(packet.content()[1:3])
         data = packet.content()[3:]
         data_entry_len = 9  # 1 + 4 + 4
         data_entries = [
-            data[i: i + data_entry_len]
+            data[i : i + data_entry_len]
             for i in range(0, len(data), data_entry_len)
         ]
 
@@ -182,7 +197,9 @@ class SessionManager:
             self.received_datagram_nr = datagram_num
         else:
             print("SessionManager: Już otrzymano pakiet o tym numerze")
-        return Packet(packet_type_server["receive"].encode() + packet.content()[1:3])
+        return Packet(
+            packet_type_server["receive"].encode() + packet.content()[1:3]
+        )
 
     def handle_close(self) -> Packet:
         """

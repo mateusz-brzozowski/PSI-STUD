@@ -22,7 +22,7 @@ SENDER_STATES = {
     "SYMMETRIC_KEY_NEGOTIATION": 2,
     "SESSION_CONFIRMATION": 3,
     "DATA_TRANSFER": 4,
-    "SESSION_CLOSING": 5
+    "SESSION_CLOSING": 5,
 }
 
 SEND_DATA_MAX_INTERVAL = 30
@@ -64,9 +64,19 @@ class Sender:
     DATA_SIZE = 9
     MAX_DATA_SIZE = 512
 
-    def __init__(self, address: Tuple[str, int], write_semaphore: Semaphore, stream_ids: List[str], bind_port: Optional[int]) -> None:
-        (self._prime_number, self._primitive_root, self._private_key,
-         self._public_key) = diffie_hellman.get_data()
+    def __init__(
+        self,
+        address: Tuple[str, int],
+        write_semaphore: Semaphore,
+        stream_ids: List[str],
+        bind_port: Optional[int],
+    ) -> None:
+        (
+            self._prime_number,
+            self._primitive_root,
+            self._private_key,
+            self._public_key,
+        ) = diffie_hellman.get_data()
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self._send_datagram_number = 0
         self.write_semaphore = write_semaphore
@@ -111,11 +121,13 @@ class Sender:
                 self.send_declaration()
             elif self._state == SENDER_STATES["DATA_TRANSFER"]:
                 if self._previous_message_content:
-                    self.send_data(Packet(
-                        packet_type_client["send"].encode()
-                        + pack(self._send_datagram_number, 2)
-                        + self._previous_message_content
-                    ))
+                    self.send_data(
+                        Packet(
+                            packet_type_client["send"].encode()
+                            + pack(self._send_datagram_number, 2)
+                            + self._previous_message_content
+                        )
+                    )
                 else:
                     self.send_new_data()
             elif self._state == SENDER_STATES["SESSION_CLOSING"]:
@@ -139,13 +151,15 @@ class Sender:
             print(f"Sender: Wyjątek podczas wysyłania danych: {exception}")
         except UnicodeEncodeError as exception:
             print(
-                f"Sender: Wyjątek podczas enkodowania tekstu na bajty: {exception}")
+                "Sender: Wyjątek podczas enkodowania"
+                f"tekstu na bajty: {exception}"
+            )
 
     def receive(self) -> Optional[Packet]:
         try:
             data = self._sock.recv(512)
 
-            print(f"Sender: Otrzymana wiadomość: {data}")
+            print(f"Sender: Otrzymana wiadomość: {data!r}")
 
             datagram = Packet(data)
 
@@ -158,15 +172,15 @@ class Sender:
             print(f"Sender: Wyjątek podczas otrzymywania danych:: {exception}")
         except UnicodeDecodeError as exception:
             print(
-                f"Sender: Wyjątek podczas dekodowania tekstu na bajty: {exception}")
+                "Sender: Wyjątek podczas dekodowania"
+                f"tekstu na bajty: {exception}"
+            )
 
         return None
 
     def handle_receive(self) -> Optional[Packet]:
         for _ in range(10):
-            datagram = self.receive()
-
-            if datagram:
+            if datagram := self.receive():
                 return datagram
             else:
                 self.send(self._previous_datagram)
@@ -174,7 +188,7 @@ class Sender:
         self._state = SENDER_STATES["SESSION_CLOSING"]
         return None
 
-    def init(self):
+    def init(self) -> None:
         self._session_key = None
         self._send_datagram_number = 0
 
@@ -182,11 +196,12 @@ class Sender:
 
         self.send(message)
 
-        received = self.handle_receive()
-
-        if received:
+        if received := self.handle_receive():
             data = received.content()
-            if len(data) >= 1 and received.msg_type() == packet_type_server["initial"]:
+            if (
+                len(data) >= 1
+                and received.msg_type() == packet_type_server["initial"]
+            ):
                 self._state = SENDER_STATES["SYMMETRIC_KEY_NEGOTIATION"]
             else:
                 self._state = SENDER_STATES["SESSION_CLOSING"]
@@ -194,23 +209,28 @@ class Sender:
             self._work = False
 
     def send_session_data(self) -> None:
-        content = packet_type_client["session_data"].encode() \
-            + pack(self._public_key, 8) \
-            + pack(self._primitive_root, 4) \
+        content = (
+            packet_type_client["session_data"].encode()
+            + pack(self._public_key, 8)
+            + pack(self._primitive_root, 4)
             + pack(self._prime_number, 8)
+        )
 
         message = Packet(content)
 
         self.send(message)
 
-        received = self.handle_receive()
-
-        if received:
+        if received := self.handle_receive():
             data = received.content()
-            if len(data) >= 9 and received.msg_type() == packet_type_server["session_data"]:
+            if (
+                len(data) >= 9
+                and received.msg_type() == packet_type_server["session_data"]
+            ):
                 self._receiver_public_key = unpack(data[1:9])
                 self._session_key = diffie_hellman.get_session_key(
-                    self._receiver_public_key, self._private_key, self._prime_number
+                    self._receiver_public_key,
+                    self._private_key,
+                    self._prime_number,
                 )
                 self._state = SENDER_STATES["SESSION_CONFIRMATION"]
             else:
@@ -219,8 +239,9 @@ class Sender:
             self._state = SENDER_STATES["SESSION_CLOSING"]
 
     def send_declaration(self) -> None:
-        content = packet_type_client["declaration"].encode() \
-            + pack(len(self._stream_ids), 1)
+        content = packet_type_client["declaration"].encode() + pack(
+            len(self._stream_ids), 1
+        )
 
         for stream in self._stream_ids:
             content += stream.ljust(16).encode()
@@ -228,11 +249,12 @@ class Sender:
         message = Packet(content)
         self.send(message)
 
-        received = self.handle_receive()
-
-        if received:
+        if received := self.handle_receive():
             data = received.content()
-            if len(data) >= 1 and received.msg_type() == packet_type_server["acknowledge"]:
+            if (
+                len(data) >= 1
+                and received.msg_type() == packet_type_server["acknowledge"]
+            ):
                 self._state = SENDER_STATES["DATA_TRANSFER"]
             else:
                 self._state = SENDER_STATES["SESSION_CLOSING"]
@@ -247,18 +269,17 @@ class Sender:
     def send_data(self, message: Packet) -> None:
         self.send(message)
 
-        received = self.handle_receive()
-
-        if received:
+        if received := self.handle_receive():
             data = received.content()
 
-            number = -1
-            if len(data) >= 3:
-                number = unpack(data[1:3])
-
-            if received.msg_type() == packet_type_server["receive"] and self._send_datagram_number == number:
-                self._send_datagram_number = \
-                    (self._send_datagram_number + 1) % 2 ** 16
+            number = unpack(data[1:3]) if len(data) >= 3 else -1
+            if (
+                received.msg_type() == packet_type_server["receive"]
+                and self._send_datagram_number == number
+            ):
+                self._send_datagram_number = (
+                    self._send_datagram_number + 1
+                ) % 2**16
                 self._previous_message_content = None
                 self._state = SENDER_STATES["DATA_TRANSFER"]
             elif received.msg_type() == packet_type_server["receive"]:
@@ -273,11 +294,12 @@ class Sender:
         message = Packet(content)
         self.send(message)
 
-        received = self.handle_receive()
-
-        if received:
+        if received := self.handle_receive():
             data = received.content()
-            if len(data) >= 1 and received.msg_type() == packet_type_server["close"]:
+            if (
+                len(data) >= 1
+                and received.msg_type() == packet_type_server["close"]
+            ):
                 self._state = SENDER_STATES["INIT"]
             else:
                 self._state = SENDER_STATES["INIT"]
@@ -295,12 +317,11 @@ class Sender:
         self.write_semaphore.release()
 
     def prepare_next_packet(self) -> Packet:
-        self._read_semaphore.acquire(
-            timeout=SEND_DATA_MAX_INTERVAL
-        )
+        self._read_semaphore.acquire(timeout=SEND_DATA_MAX_INTERVAL)
 
-        content = packet_type_client["send"].encode() \
-            + pack(self._send_datagram_number, 2)
+        content = packet_type_client["send"].encode() + pack(
+            self._send_datagram_number, 2
+        )
 
         for _ in range((self.MAX_DATA_SIZE - len(content)) // self.DATA_SIZE):
             if self.send_buffer.empty():
@@ -317,7 +338,9 @@ class Sender:
         return Packet(content)
 
     def is_buffer_ready_to_read(self) -> bool:
-        return self.send_buffer.qsize() * self.DATA_SIZE + 3 > self.MAX_DATA_SIZE
+        return (
+            self.send_buffer.qsize() * self.DATA_SIZE + 3 > self.MAX_DATA_SIZE
+        )
 
 
 def generate_data(length: int) -> str:
@@ -330,9 +353,7 @@ def thread_generator(id: str, sender: Sender) -> None:
     while True:
         new = min(max(last + random.randint(-50, 50), 100), 1000)
         last = new
-        sender.save_data_to_buffer(
-            Data(id, datetime.now(), pack(new, 4))
-        )
+        sender.save_data_to_buffer(Data(id, datetime.now(), pack(new, 4)))
         time.sleep(random.random() + 1.1)
 
 
@@ -349,10 +370,7 @@ def parse_arguments(args: List[str]) -> Tuple[str, int, Optional[int]]:
         host = sys.argv[1]
         port = int(sys.argv[2])
 
-    bind_port = None
-    if (len(args) == 4):
-        bind_port = int(sys.argv[3])
-
+    bind_port = int(sys.argv[3]) if len(args) == 4 else None
     host_address = socket.gethostbyname(host)
 
     return host_address, port, bind_port
@@ -366,7 +384,7 @@ THREAD_IDS = [
     "Miernik C6H6",
     "Miernik O3",
     "Miernik PM10",
-    "Miernik PM2.5"
+    "Miernik PM2.5",
 ]
 
 
