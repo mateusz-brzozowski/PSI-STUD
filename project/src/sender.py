@@ -344,7 +344,7 @@ class Sender:
 
     def is_buffer_ready_to_read(self) -> bool:
         return (
-            self.send_buffer.qsize() * self.DATA_SIZE + 3 > self.MAX_DATA_SIZE
+            self.send_buffer.qsize() * self.DATA_SIZE + 3 >= self.MAX_DATA_SIZE
         )
 
 

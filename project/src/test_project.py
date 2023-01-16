@@ -42,6 +42,7 @@ def sender_proc() -> None:
     write_semaphore = Semaphore(1)
 
     sender = Sender((host_s, port_s), write_semaphore, THREAD_IDS, bind_port_s)
+    sender.MAX_DATA_SIZE = 3 + 48 * 9  # type: ignore
     thread_fib = Thread(target=fib_generator, args=(THREAD_IDS[1], sender))
     thread_fib.start()
     sender.work()
