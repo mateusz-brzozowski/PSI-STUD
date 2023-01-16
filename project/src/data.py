@@ -1,4 +1,4 @@
-# Projekt
+# Projekt - System niezawodnego strumieniowania danych po UDP
 # Autorzy: Mateusz Brzozowski, Bartłomiej Krawczyk, Jakub Marcowski, Aleksandra Sypuła
 # Data ukończenia: 16.01.2023
 
